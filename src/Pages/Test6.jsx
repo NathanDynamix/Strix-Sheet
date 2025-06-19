@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo ,useRef} from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import html2canvas from 'html2canvas';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, 
   ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, 
@@ -1342,6 +1343,46 @@ return (
     );
   };
 
+ const chartRef = useRef(null);
+
+const handleDownloadChart = async () => {
+  if (!chartRef.current) {
+    alert("Chart not available for export");
+    return;
+  }
+
+  try {
+    const canvas = await html2canvas(chartRef.current, {
+      scale: 2, // Higher quality
+      logging: false,
+      useCORS: true,
+      allowTaint: true
+    });
+
+    const link = document.createElement('a');
+    link.download = `chart-export-${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (error) {
+    console.error("Error exporting chart:", error);
+    alert("Failed to export chart");
+  }
+};
+const handleDownloadChartImage = (format = 'png') => {
+  const chartElement = document.querySelector('.chart-container');
+  
+  if (!chartElement) {
+    alert("Chart not found");
+    return;
+  }
+
+  html2canvas(chartElement).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `chart_${new Date().toISOString().slice(0,10)}.${format}`;
+    link.href = canvas.toDataURL(`image/${format}`);
+    link.click();
+  });
+};
   // Render data summary
   const renderDataSummary = () => {
     if (!data.length) return null;
@@ -1384,120 +1425,256 @@ return (
   </div>
 );
   }
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [fullscreenMode, setFullscreenMode] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const toggleFullscreen = () => {
+    setFullscreenMode(!fullscreenMode);
+  };
 
 
   return (
-  <div className="min-h-screen bg-gray-100 p-4">
-    <div className="max-w-7xl mx-auto">
-      
-      {/* Page Header */}
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <BarChart2 className="mr-2" size={24} />
-          Advanced Chart Library
-        </h1>
-        <p className="text-gray-600">
-          Visualize your data with multiple chart types and interactive controls
-        </p>
-      </header>
+  <div className="min-h-screen bg-gray-50">
+    {/* Header Section */}
+    <header className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <BarChart2 className="mr-3 text-blue-600" size={28} />
+            Charts
+          </h1>
+          <p className="text-gray-600 mt-1">Transform your data into actionable insights</p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={handleDownloadChart}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <Download className="mr-2" size={16} />
+            Export
+          </button>
+        </div>
+      </div>
+    </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Left Sidebar */}
-        <div className="lg:col-span-1 h-[calc(100vh-6rem)] overflow-y-auto space-y-4">
-          
-          {/* File Upload */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-medium mb-3 flex items-center">
-              <Upload className="mr-2" size={18} />
-              Upload Data
-            </h3>
-            <label className="block w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 text-center">
-              <input
-                type="file"
-                className="hidden"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileUpload}
-              />
+    {/* Main Content */}
+    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      {/* Top Control Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Data Upload Card */}
+        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+            <Upload className="mr-2 text-blue-500" size={20} />
+            Data Source
+          </h3>
+          <label className="block w-full px-4 py-3 bg-blue-50 border-2 border-dashed border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 text-center">
+            <input
+              type="file"
+              className="hidden"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileUpload}
+            />
+            <div className="flex flex-col items-center">
+              <Upload className="text-blue-500 mb-2" size={24} />
               <span className="text-blue-700 font-medium">Choose File</span>
               {fileName && (
-                <p className="text-xs text-gray-500 mt-1 truncate">{fileName}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate max-w-full">
+                  {fileName}
+                </p>
               )}
-            </label>
-            <p className="text-xs text-gray-500 mt-2">
-              Supports CSV, Excel files. Max 10MB.
-            </p>
-          </div>
-
-          {renderColumnControls()}
-          {renderChartTypeSelector()}
-          {renderDataSummary()}
+            </div>
+          </label>
+          <p className="text-xs text-gray-500 text-center mt-2">
+            Supports CSV, Excel files. Max 10MB.
+          </p>
         </div>
 
-        {/* Main Content */}
-        <div className="lg:col-span-3 h-[calc(100vh-6rem)] overflow-y-auto space-y-4">
-          
-          {/* View Toggle */}
-          <div className="flex justify-between items-center bg-white p-3 rounded-lg shadow">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setDataView("chart")}
-                className={`px-3 py-1 rounded-md flex items-center ${
-                  dataView === "chart"
-                    ? "bg-blue-100 text-blue-800"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <Eye className="mr-1" size={16} />
-                Chart View
-              </button>
-              <button
-                onClick={() => setDataView("table")}
-                className={`px-3 py-1 rounded-md flex items-center ${
-                  dataView === "table"
-                    ? "bg-blue-100 text-blue-800"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <Table className="mr-1" size={16} />
-                Data Table
-              </button>
+        {/* Data Configuration */}
+        <div className="bg-white p-4 rounded-lg shadow border border-gray-200 lg:col-span-2">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+            <Sliders className="mr-2 text-blue-500" size={20} />
+            Data Configuration
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">X-Axis (Category)</h4>
+              <div className="flex flex-wrap gap-2">
+                {columns.map(col => (
+                  <button
+                    key={`x-${col}`}
+                    onClick={() => handleColumnSelect(col, 'x')}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      chartConfig.xAxis === col
+                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
+                  >
+                    {col}
+                    {chartConfig.xAxis === col && <CheckCircle className="ml-1" size={14} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Y-Axis (Values)</h4>
+              <div className="flex flex-wrap gap-2">
+                {columns.map(col => (
+                  <button
+                    key={`y-${col}`}
+                    onClick={() => handleColumnSelect(col, 'y')}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      chartConfig.yAxis.includes(col)
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
+                  >
+                    {col}
+                    {chartConfig.yAxis.includes(col) && <CheckCircle className="ml-1" size={14} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left Sidebar - Chart Types */}
+        <div className="lg:col-span-1">
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200 sticky top-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+              <BarChart2 className="mr-2 text-blue-500" size={20} />
+              Chart Type
+            </h3>
+            <div className="space-y-4">
+              {Object.entries(groupedChartTypes).map(([category, types]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {types.map(type => (
+                      <button
+                        key={type.id}
+                        onClick={() => setChartType(type.id)}
+                        className={`flex flex-col items-center p-2 rounded-lg border ${
+                          chartType === type.id
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <type.icon size={18} className="mb-1" />
+                        <span className="text-xs">{type.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* View Toggle and Filters */}
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setDataView("chart")}
+                  className={`px-3 py-1 rounded-md flex items-center ${
+                    dataView === "chart"
+                      ? "bg-blue-100 text-blue-800"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Eye className="mr-1" size={16} />
+                  Chart View
+                </button>
+                <button
+                  onClick={() => setDataView("table")}
+                  className={`px-3 py-1 rounded-md flex items-center ${
+                    dataView === "table"
+                      ? "bg-blue-100 text-blue-800"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Table className="mr-1" size={16} />
+                  Data Table
+                </button>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-md flex items-center">
+                  <Settings className="mr-1" size={16} />
+                  Settings
+                </button>
+              </div>
             </div>
 
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-md flex items-center">
-                <Download className="mr-1" size={16} />
-                Export
-              </button>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-md flex items-center">
-                <Settings className="mr-1" size={16} />
-                Settings
-              </button>
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {columns.slice(0, 3).map(col => (
+                <div key={`filter-${col}`} className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">{col}</label>
+                  <input
+                    type="text"
+                    value={filters[col] || ''}
+                    onChange={(e) => handleFilterChange(col, e.target.value)}
+                    placeholder={`Filter ${col}...`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
-          {renderFilters()}
-
           {/* Chart/Table Display */}
-          <div className="bg-white p-4 rounded-lg shadow min-h-[500px]">
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
             {loading ? (
               <div className="flex justify-center items-center h-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
               </div>
             ) : dataView === "chart" ? (
-              renderChart()
+              <div ref={chartRef}>{renderChart()}</div>
             ) : (
               renderDataTable()
             )}
           </div>
+
+          {/* Data Summary - Moved to bottom */}
+          <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+              <FileText className="mr-2 text-blue-500" size={20} />
+              Data Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">Total Records</p>
+                <p className="text-xl font-bold text-blue-900">{data.length}</p>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-green-800">Columns</p>
+                <p className="text-xl font-bold text-green-900">{columns.length}</p>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <p className="text-sm text-purple-800">File</p>
+                <p className="text-sm font-medium text-purple-900 truncate">{fileName}</p>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded-lg">
+                <p className="text-sm text-yellow-800">Last Updated</p>
+                <p className="text-sm font-medium text-yellow-900">
+                  {new Date().toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 );
-
-
-
 };
 
 export default ChartLibrary;

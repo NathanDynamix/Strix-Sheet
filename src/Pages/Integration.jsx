@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback,useRef } from 'react';
 import {
-  Download, Upload, Share2, BarChart3, Calculator, Grid, Save, Plus, Trash2,
+Download, Upload, Share2, BarChart3, Calculator, Grid, Save, Plus, Trash2,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, PieChart,
-  LineChart, TrendingUp, FunctionSquare, X, Search, DollarSign, Percent, Palette, Calendar, ChevronDown,WrapText, Mail, Link2, Users,Undo,Redo, Copy
+  LineChart, TrendingUp, FunctionSquare, X, Search, DollarSign, Percent, Palette, 
+  Calendar, ChevronDown, WrapText, Mail, Link2, Users, Undo, Redo, Copy, 
+  FileText, Folder, Printer, Clock, Undo2, Redo2, Scissors, Grid3X3, Eye, 
+  ZoomIn, ZoomOut, Maximize, ArrowUpDown, Filter, Shield, Table, Settings, 
+  Puzzle, HelpCircle, BookOpen, Clipboard, Image,  Keyboard
 } from 'lucide-react';
-import { useChartData } from './ChartDataContext';
+
 import { useSpreadsheetData } from '../context/SpreadsheetDataContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate,Link } from 'react-router-dom';
 const functionCategories = [
   {
     name: 'Math',
@@ -88,7 +92,24 @@ const functionCategories = [
   }
 ];
 
-const SpreadsheetApp = () => {
+export default function SpreadsheetApp(){
+  const [activeMenu, setActiveMenu] = useState(null);
+const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+const menuRef = useRef(null);
+  const [history, setHistory] = useState([{}]); // Initial empty state
+  const [sheetName, setSheetName] = useState('Untitled spreadsheet');
+const [clipboard, setClipboard] = useState(null);
+const [findReplace, setFindReplace] = useState({ show: false, find: '', replace: '' });
+const [filterActive, setFilterActive] = useState(false);
+const [sortDialog, setSortDialog] = useState({ show: false, column: 0, ascending: true });
+const [chartDialog, setChartDialog] = useState({ show: false, type: 'line' });
+const [chartData, setChartData] = useState([]);
+const [zoom, setZoom] = useState(100);
+const [showGridlines, setShowGridlines] = useState(true);
+const [showFormulas, setShowFormulas] = useState(false);
+const [notification, setNotification] = useState(null);
+const fileInputRef = useRef(null);
+const [historyIndex, setHistoryIndex] = useState(0);
   const [cells, setCells] = useState({});
   const navigate = useNavigate();
  const [showShareDropdown, setShowShareDropdown] = useState(false);
@@ -108,6 +129,7 @@ const [isHoveringSub, setIsHoveringSub] = useState(false);
   const [showFunctions, setShowFunctions] = useState(false);
   const [functionSearch, setFunctionSearch] = useState('');
   const [selectedRange, setSelectedRange] = useState('');
+  const formulaBtnRef = useRef(null);
   // Add these state variables at the top of your component
 const [colWidths, setColWidths] = useState({});
 const [rowHeights, setRowHeights] = useState({});
@@ -121,7 +143,97 @@ const DEFAULT_ROW_HEIGHT = 24;
 // Helper functions for resizing
 const getColWidth = (col) => colWidths[col] || DEFAULT_COL_WIDTH;
 const getRowHeight = (row) => rowHeights[row] || DEFAULT_ROW_HEIGHT;
+const getColumnLabel = (index) => String.fromCharCode(65 + index);
+  
+  const getCellKey = (row, col) => `${row}-${col}`;
+  
+  const getCellValue = (row, col) => {
+    const key = getCellKey(row, col);
+    return cellData[key] || '';
+  };
 
+  const getCellStyle = (row, col) => {
+    const key = getCellKey(row, col);
+    return cellStyles[key] || {};
+  };
+
+  const setCellValue = (row, col, value) => {
+    const key = getCellKey(row, col);
+    const newData = { ...cellData, [key]: value };
+    setCellData(newData);
+    addToHistory(newData, cellStyles);
+  };
+
+  const setCellStyle = (row, col, style) => {
+    const key = getCellKey(row, col);
+    const newStyles = { ...cellStyles, [key]: { ...cellStyles[key], ...style } };
+    setCellStyles(newStyles);
+    addToHistory(cellData, newStyles);
+  };
+
+  const addToHistory = (data, styles) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push({ data, styles });
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+
+// Call this whenever cells change to save to history
+const saveToHistory = (currentCells) => {
+  // Don't save if no changes from current state
+  if (JSON.stringify(currentCells) === JSON.stringify(history[historyIndex])) {
+    return;
+  }
+
+  // If we're not at the end of history, truncate future states
+  const newHistory = history.slice(0, historyIndex + 1);
+  
+  setHistory([...newHistory, JSON.parse(JSON.stringify(currentCells))]);
+  setHistoryIndex(newHistory.length);
+};
+const handleMenuClick = (menuName, event) => {
+  if (activeMenu === menuName) {
+    setActiveMenu(null);
+  } else {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX
+    });
+    setActiveMenu(menuName);
+  }
+};
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (menuRef.current && !menuRef.current.contains(event.target)) {
+      setActiveMenu(null);
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, []);
+const undo = () => {
+  if (historyIndex > 0) {
+    setHistoryIndex(historyIndex - 1);
+    setCells(history[historyIndex - 1]);
+  }
+};
+
+const redo = () => {
+  if (historyIndex < history.length - 1) {
+    setHistoryIndex(historyIndex + 1);
+    setCells(history[historyIndex + 1]);
+  }
+};
 // Mouse handlers for resizing
 const handleResizeMouseDown = (type, index, e) => {
   setResizing({
@@ -155,102 +267,67 @@ useEffect(() => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-      return true;
-    } catch (err) {
-      console.error('Failed to copy: ', err);
-      // Fallback for browsers that don't support clipboard API
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-        return true;
-      } catch (err) {
-        console.error('Fallback copy failed: ', err);
-        return false;
-      } finally {
-        document.body.removeChild(textarea);
-      }
-    }
-  };
 
-  const handleCopyLink = () => {
-    copyToClipboard(window.location.href);
-    setShowShareDropdown(false);
-  };
-
-  const handleEmailShare = () => {
-    const subject = "Check out this spreadsheet";
-    const body = `I wanted to share this spreadsheet with you: ${window.location.href}`;
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
-    setShowShareDropdown(false);
-  };
-
-  const handleShareWithPeople = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Spreadsheet',
-        text: 'Check out this spreadsheet',
-        url: window.location.href,
-      }).catch(err => console.log('Error sharing:', err));
-    } else {
-      copyToClipboard(window.location.href);
-    }
-    setShowShareDropdown(false);
-  };
-
-  const handleGetShareableLink = () => {
-    copyToClipboard(window.location.href);
-    setShowShareDropdown(false);
-  };
 
 const { setSpreadsheetData, setDataSource } = useSpreadsheetData();
 
   // Your existing state and functions...
 
-  const handleGenerateChart = () => {
-    // Prepare the data structure
-    const headers = [];
-    const chartData = [];
-
-    // Get headers from first row (A1, B1, etc.)
-    for (let col = 0; col < 26; col++) { // A-Z columns
-      const cellRef = `${String.fromCharCode(65 + col)}1`;
-      const header = cells[cellRef]?.display || `Column ${col + 1}`;
-      headers.push(header);
-    }
-
-    // Get data from rows 2-101
-    for (let row = 2; row <= 101; row++) {
-      const rowData = {};
-      let hasData = false;
-
-      for (let col = 0; col < headers.length; col++) {
-        const colLetter = String.fromCharCode(65 + col);
-        const cellRef = `${colLetter}${row}`;
-        const value = cells[cellRef]?.display || '';
-        
-        // Convert to number if possible
-        rowData[headers[col]] = isNaN(value) ? value : Number(value);
-        if (value) hasData = true;
+ const handleGenerateChart = () => {
+  // Track which columns have non-zero values
+  const activeColumns = new Set();
+  const allHeaders = [];
+  
+  // First pass: Scan all data to find columns with actual values
+  for (let row = 2; row <= 101; row++) {
+    for (let col = 0; col < 26; col++) {
+      const cellRef = `${String.fromCharCode(65 + col)}${row}`;
+      const value = cells[cellRef]?.display;
+      
+      // Check if value exists and is not zero/empty
+      if (value && value !== "0" && value !== 0 && value !== "0.0") {
+        activeColumns.add(col);
       }
-
-      if (hasData) chartData.push(rowData);
     }
+  }
 
-    // Save to context and navigate
-    setSpreadsheetData(chartData);
-    setDataSource('spreadsheet');
-    navigate('/charts');
-  };
+  // Second pass: Collect only relevant headers
+  const headers = [];
+  for (let col = 0; col < 26; col++) {
+    if (activeColumns.has(col)) {
+      const cellRef = `${String.fromCharCode(65 + col)}1`;
+      headers.push({
+        index: col,
+        name: cells[cellRef]?.display || `Column ${col + 1}`
+      });
+    }
+  }
+
+  // Third pass: Build the final dataset
+  const chartData = [];
+  for (let row = 2; row <= 101; row++) {
+    const rowData = {};
+    let hasData = false;
+
+    headers.forEach(header => {
+      const cellRef = `${String.fromCharCode(65 + header.index)}${row}`;
+      const value = cells[cellRef]?.display;
+      
+      // Only include if value exists and is not zero
+      if (value && value !== "0" && value !== 0) {
+        rowData[header.name] = isNaN(value) ? value : Number(value);
+        hasData = true;
+      }
+    });
+
+    if (hasData) chartData.push(rowData);
+  }
+
+  // Set the final data and navigate
+  setSpreadsheetData(chartData);
+  setDataSource('spreadsheet');
+  navigate('/charts');
+};
 
 const handleResizeMouseMove = (e) => {
   if (!resizing.active) return;
@@ -544,19 +621,20 @@ useEffect(() => {
 }, [cells]);
 
   const handleCellChange = (cellRef, value) => {
-    setCells(prev => {
-      const newCells = { ...prev };
-      const isFormula = value.startsWith('=');
-      
-      newCells[cellRef] = {
-        value: value,
-        formula: isFormula ? value : '',
-        display: isFormula ? evaluateFormula(value, cellRef) : value
-      };
-      
-      return newCells;
-    });
-  };
+  setCells(prev => {
+    const newCells = { ...prev };
+    const isFormula = value.startsWith('=');
+    newCells[cellRef] = { 
+      value: value, 
+      formula: isFormula ? value : '', 
+      display: isFormula ? evaluateFormula(value, cellRef) : value 
+    };
+    
+    // Save to history after state update
+    setTimeout(() => saveToHistory(newCells), 0);
+    return newCells;
+  });
+};
 
   const handleCellClick = (cellRef) => {
     setSelectedCell(cellRef);
@@ -639,21 +717,43 @@ const renderCell = (cellRef) => {
   );
 };
 
-  const generateAdvancedChart = () => {
-    const data = [];
-    for (let row = 1; row <= 10; row++) {
-      const labelCell = coordsToCell(row, 0);
-      const valueCell = coordsToCell(row, 1);
-      const label = cells[labelCell]?.display || `Series ${row}`;
-      const value = getCellNumericValue(valueCell);
-      
-      if (label && value !== 0) {
-        data.push({ label, value, color: `hsl(${row * 36}, 70%, 50%)` });
-      }
-    }
-    setChartData(data);
-    setShowChart(true);
-  };
+ const generateAdvancedChart = (options = {}) => {
+  const {
+    minRow = 1,
+    maxRow = 10,
+    labelCol = 0,
+    valueCol = 1,
+    includeZeroValues = false,
+    skipEmptyLabels = true
+  } = options;
+
+  const data = [];
+  let seriesCount = 1;
+
+  for (let row = minRow; row <= maxRow; row++) {
+    const labelCell = coordsToCell(row, labelCol);
+    const valueCell = coordsToCell(row, valueCol);
+    
+    const label = cells[labelCell]?.display?.toString().trim() || '';
+    const rawValue = cells[valueCell]?.display;
+    const value = parseFloat(rawValue) || 0;
+    
+    // Skip conditions
+    if (skipEmptyLabels && label === '') continue;
+    if (!includeZeroValues && value === 0) continue;
+    if (label === '' && rawValue === undefined) continue;
+    
+    data.push({
+      label: label || `Series ${seriesCount++}`,
+      value,
+      color: `hsl(${row * 36}, 70%, 50%)`
+    });
+  }
+
+  setChartData(data);
+  setShowChart(data.length > 0);
+  
+};
 
   const exportToCSV = () => {
     let csvContent = '';
@@ -977,429 +1077,938 @@ const handleHeaderDoubleClick = (type, index) => {
         );
     }
   };
+  const handleFileLoad = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          setCellData(data.cellData || {});
+          setCellStyles(data.cellStyles || {});
+          setSheetName(data.sheetName || 'Untitled spreadsheet');
+          showNotification('Spreadsheet loaded');
+        } catch (error) {
+          showNotification('Error loading file');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+  const handleSort = () => {
+    const columnData = [];
+    for (let row = 0; row < rows; row++) {
+      const value = getCellValue(row, sortDialog.column);
+      if (value) {
+        columnData.push({ row, value, originalRow: row });
+      }
+    }
+
+    columnData.sort((a, b) => {
+      const aVal = isNaN(a.value) ? a.value : parseFloat(a.value);
+      const bVal = isNaN(b.value) ? b.value : parseFloat(b.value);
+      
+      if (sortDialog.ascending) {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+
+    const newData = { ...cellData };
+    const newStyles = { ...cellStyles };
+    
+    columnData.forEach((item, index) => {
+      for (let col = 0; col < cols; col++) {
+        const oldKey = getCellKey(item.originalRow, col);
+        const newKey = getCellKey(index, col);
+        newData[newKey] = cellData[oldKey] || '';
+        newStyles[newKey] = cellStyles[oldKey] || {};
+      }
+    });
+
+    setCellData(newData);
+    setCellStyles(newStyles);
+    addToHistory(newData, newStyles);
+    setSortDialog({ show: false, column: 0, ascending: true });
+    showNotification('Data sorted');
+  };
+  const handleNew = () => {
+    setCellData({});
+    setCellStyles({});
+    setHistory([{}]);
+    setHistoryIndex(0);
+    setSheetName('Untitled spreadsheet');
+    showNotification('New spreadsheet created');
+  };
+  const handleOpen = () => {
+    fileInputRef.current?.click();
+  };
+  const handleSave = () => {
+    const data = { cellData, cellStyles, sheetName };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sheetName}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('Spreadsheet saved');
+  };
+  const handleDownloadCSV = () => {
+    let csv = '';
+    for (let row = 0; row < rows; row++) {
+      const rowData = [];
+      for (let col = 0; col < cols; col++) {
+        rowData.push(getCellValue(row, col));
+      }
+      csv += rowData.join(',') + '\n';
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sheetName}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('CSV downloaded');
+  };
+   const handleUndo = () => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1];
+      setCellData(prevState.data || {});
+      setCellStyles(prevState.styles || {});
+      setHistoryIndex(historyIndex - 1);
+      showNotification('Undone');
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setCellData(nextState.data || {});
+      setCellStyles(nextState.styles || {});
+      setHistoryIndex(historyIndex + 1);
+      showNotification('Redone');
+    }
+  };
+  const handleCut = () => {
+    handleCopy();
+    setCellValue(selectedCell.row, selectedCell.col, '');
+    showNotification('Cut');
+  };
+
+  const handlePaste = () => {
+    if (clipboard) {
+      setCellValue(selectedCell.row, selectedCell.col, clipboard.value);
+      setCellStyle(selectedCell.row, selectedCell.col, clipboard.style);
+      showNotification('Pasted');
+    }
+  };
+
+  const handleDelete = () => {
+    setCellValue(selectedCell.row, selectedCell.col, '');
+    showNotification('Deleted');
+  };
+
+  const handleFindReplace = () => {
+    if (!findReplace.find) return;
+    
+    let replaced = 0;
+    const newData = { ...cellData };
+    
+    Object.keys(newData).forEach(key => {
+      if (newData[key].includes(findReplace.find)) {
+        newData[key] = newData[key].replace(new RegExp(findReplace.find, 'g'), findReplace.replace);
+        replaced++;
+      }
+    });
+    
+    setCellData(newData);
+    addToHistory(newData, cellStyles);
+    showNotification(`Replaced ${replaced} instances`);
+    setFindReplace({ show: false, find: '', replace: '' });
+  };
+  const handleCopy = () => {
+    const value = getCellValue(selectedCell.row, selectedCell.col);
+    const style = getCellStyle(selectedCell.row, selectedCell.col);
+    setClipboard({ value, style, row: selectedCell.row, col: selectedCell.col });
+    showNotification('Copied');
+  };
+  const insertRow = () => {
+    const newData = {};
+    const newStyles = {};
+    
+    Object.keys(cellData).forEach(key => {
+      const [row, col] = key.split('-').map(Number);
+      if (row >= selectedCell.row) {
+        const newKey = getCellKey(row + 1, col);
+        newData[newKey] = cellData[key];
+        newStyles[newKey] = cellStyles[key] || {};
+      } else {
+        newData[key] = cellData[key];
+        newStyles[key] = cellStyles[key] || {};
+      }
+    });
+    
+    setCellData(newData);
+    setCellStyles(newStyles);
+    addToHistory(newData, newStyles);
+    showNotification('Row inserted');
+  };
+  
+  const insertColumn = () => {
+    const newData = {};
+    const newStyles = {};
+    
+    Object.keys(cellData).forEach(key => {
+      const [row, col] = key.split('-').map(Number);
+      if (col >= selectedCell.col) {
+        const newKey = getCellKey(row, col + 1);
+        newData[newKey] = cellData[key];
+        newStyles[newKey] = cellStyles[key] || {};
+      } else {
+        newData[key] = cellData[key];
+        newStyles[key] = cellStyles[key] || {};
+      }
+    });
+    
+    setCellData(newData);
+    setCellStyles(newStyles);
+    addToHistory(newData, newStyles);
+    showNotification('Column inserted');
+  };
+  const toggleBold = () => {
+    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
+    setCellStyle(selectedCell.row, selectedCell.col, { 
+      fontWeight: currentStyle.fontWeight === 'bold' ? 'normal' : 'bold' 
+    });
+  };
+  const toggleItalic = () => {
+    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
+    setCellStyle(selectedCell.row, selectedCell.col, { 
+      fontStyle: currentStyle.fontStyle === 'italic' ? 'normal' : 'italic' 
+    });
+  };
+
+  const toggleUnderline = () => {
+    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
+    setCellStyle(selectedCell.row, selectedCell.col, { 
+      textDecoration: currentStyle.textDecoration === 'underline' ? 'none' : 'underline' 
+    });
+  };
+
+  const setAlignment = (align) => {
+    setCellStyle(selectedCell.row, selectedCell.col, { textAlign: align });
+  };
+
+  const setColor = (type, color) => {
+    const styleKey = type === 'text' ? 'color' : 'backgroundColor';
+    setCellStyle(selectedCell.row, selectedCell.col, { [styleKey]: color });
+    setColorPicker({ show: false, type: '', color: '#ffffff' });
+  };
+  const toggleFilter = () => {
+    setFilterActive(!filterActive);
+    showNotification(filterActive ? 'Filter removed' : 'Filter applied');
+  };
+  const MenuDropdown = ({ items, isOpen, onClose }) => {
+    if (!isOpen) return null;
+    
+    return (
+      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-48">
+        {items.map((item, index) => (
+          <button
+            key={index}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+            onClick={() => {
+              item.action();
+              onClose();
+            }}
+          >
+            <item.icon size={16} />
+            {item.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+  const handleZoomIn = () => setZoom(Math.min(200, zoom + 25));
+  const handleZoomOut = () => setZoom(Math.max(50, zoom - 25));
+  const toggleGridlines = () => setShowGridlines(!showGridlines);
+  const toggleFormulas = () => setShowFormulas(!showFormulas);
+
+ const menuItems = {
+  File: [
+    { 
+      icon: FileText, 
+      label: 'New', 
+      action: () => {
+        setCells({});
+        setSheetName('Untitled spreadsheet');
+        setNotification('New spreadsheet created');
+        saveToHistory({});
+      },
+      shortcut: 'Ctrl+N'
+    },
+    { 
+      icon: Folder, 
+      label: 'Open', 
+      action: () => fileInputRef.current?.click(),
+      shortcut: 'Ctrl+O'
+    },
+    { 
+      icon: Save, 
+      label: 'Save', 
+      action: handleSave,
+      shortcut: 'Ctrl+S'
+    },
+    { 
+      icon: Download, 
+      label: 'Download as CSV', 
+      action: exportToCSV
+    },
+    { 
+      icon: Printer, 
+      label: 'Print', 
+      action: () => window.print(),
+      shortcut: 'Ctrl+P'
+    },
+    { 
+      icon: Share2, 
+      label: 'Share', 
+      action: () => setShowShareDropdown(!showShareDropdown)
+    },
+    { 
+      icon: Clock, 
+      label: 'Version history', 
+      action: () => setNotification('Version history would show here')
+    }
+  ],
+  Edit: [
+    { 
+      icon: Undo2, 
+      label: 'Undo', 
+      action: undo,
+      shortcut: 'Ctrl+Z',
+      disabled: historyIndex === 0
+    },
+    { 
+      icon: Redo2, 
+      label: 'Redo', 
+      action: redo,
+      shortcut: 'Ctrl+Y',
+      disabled: historyIndex === history.length - 1
+    },
+    { 
+      icon: Scissors, 
+      label: 'Cut', 
+      action: handleCut,
+      shortcut: 'Ctrl+X'
+    },
+    { 
+      icon: Copy, 
+      label: 'Copy', 
+      action: handleCopy,
+      shortcut: 'Ctrl+C'
+    },
+    { 
+      icon: Clipboard, 
+      label: 'Paste', 
+      action: handlePaste,
+      shortcut: 'Ctrl+V'
+    },
+    { 
+      icon: Search, 
+      label: 'Find and replace', 
+      action: () => setFindReplace({ ...findReplace, show: true }),
+      shortcut: 'Ctrl+F'
+    },
+    { 
+      icon: Trash2, 
+      label: 'Delete', 
+      action: () => handleCellChange(selectedCell, ''),
+      shortcut: 'Del'
+    }
+  ],
+  View: [
+    { 
+      icon: Grid3X3, 
+      label: showGridlines ? 'Hide gridlines' : 'Show gridlines', 
+      action: toggleGridlines
+    },
+    { 
+      icon: Eye, 
+      label: showFormulas ? 'Hide formulas' : 'Show formulas', 
+      action: toggleFormulas,
+      shortcut: 'Ctrl+`'
+    },
+    { 
+      icon: ZoomIn, 
+      label: 'Zoom in', 
+      action: handleZoomIn,
+      shortcut: 'Ctrl+Plus'
+    },
+    { 
+      icon: ZoomOut, 
+      label: 'Zoom out', 
+      action: handleZoomOut,
+      shortcut: 'Ctrl+-'
+    },
+    { 
+      icon: Maximize, 
+      label: 'Full screen', 
+      action: () => document.documentElement.requestFullscreen(),
+      shortcut: 'F11'
+    }
+  ],
+  Insert: [
+    { 
+      icon: Plus, 
+      label: 'Insert row above', 
+      action: () => insertRow('above'),
+      shortcut: 'Ctrl+Shift++'
+    },
+    { 
+      icon: Plus, 
+      label: 'Insert column left', 
+      action: () => insertColumn('left'),
+      shortcut: 'Ctrl+Shift++'
+    },
+    { 
+      icon: BarChart3, 
+      label: 'Chart', 
+      action: () => setChartDialog({ show: true, type: 'line' })
+    },
+    { 
+      icon: Image, 
+      label: 'Image', 
+      action: () => setNotification('Image upload would be implemented')
+    },
+    { 
+      icon: Link2, 
+      label: 'Link', 
+      action: () => setNotification('Link insertion would be implemented'),
+      shortcut: 'Ctrl+K'
+    }
+  ],
+  Format: [
+    { 
+      icon: Bold, 
+      label: 'Bold', 
+      action: () => formatCell({ fontWeight: cells[selectedCell]?.style?.fontWeight === 'bold' ? 'normal' : 'bold' }),
+      shortcut: 'Ctrl+B',
+      active: cells[selectedCell]?.style?.fontWeight === 'bold'
+    },
+    { 
+      icon: Italic, 
+      label: 'Italic', 
+      action: () => formatCell({ fontStyle: cells[selectedCell]?.style?.fontStyle === 'italic' ? 'normal' : 'italic' }),
+      shortcut: 'Ctrl+I',
+      active: cells[selectedCell]?.style?.fontStyle === 'italic'
+    },
+    { 
+      icon: Underline, 
+      label: 'Underline', 
+      action: () => formatCell({ textDecoration: cells[selectedCell]?.style?.textDecoration === 'underline' ? 'none' : 'underline' }),
+      shortcut: 'Ctrl+U',
+      active: cells[selectedCell]?.style?.textDecoration === 'underline'
+    },
+    { 
+      icon: AlignLeft, 
+      label: 'Align left', 
+      action: () => formatCell({ textAlign: 'left' }),
+      active: cells[selectedCell]?.style?.textAlign === 'left'
+    },
+    { 
+      icon: AlignCenter, 
+      label: 'Align center', 
+      action: () => formatCell({ textAlign: 'center' }),
+      active: cells[selectedCell]?.style?.textAlign === 'center'
+    },
+    { 
+      icon: AlignRight, 
+      label: 'Align right', 
+      action: () => formatCell({ textAlign: 'right' }),
+      active: cells[selectedCell]?.style?.textAlign === 'right'
+    },
+    { 
+      icon: Palette, 
+      label: 'Fill color', 
+      action: () => setShowColorPicker(!showColorPicker)
+    },
+    { 
+      icon: WrapText, 
+      label: 'Wrap text', 
+      action: () => formatCell({ whiteSpace: cells[selectedCell]?.style?.whiteSpace === 'normal' ? 'nowrap' : 'normal' }),
+      active: cells[selectedCell]?.style?.whiteSpace === 'normal'
+    }
+  ],
+  Data: [
+    { 
+      icon: ArrowUpDown, 
+      label: 'Sort range', 
+      action: () => setSortDialog({ show: true, column: selectedCell?.col || 0, ascending: true })
+    },
+    { 
+      icon: Filter, 
+      label: filterActive ? 'Remove filter' : 'Create filter', 
+      action: toggleFilter
+    },
+    { 
+      icon: Shield, 
+      label: 'Data validation', 
+      action: () => setNotification('Data validation would be implemented')
+    },
+    { 
+      icon: Table, 
+      label: 'Pivot table', 
+      action: () => setNotification('Pivot table would be implemented')
+    }
+  ],
+  Tools: [
+    { 
+      icon: Settings, 
+      label: 'Spell check', 
+      action: () => setNotification('Spell check would run')
+    },
+    { 
+      icon: Mail, 
+      label: 'Notifications', 
+      action: () => setNotification('Notification settings would open')
+    },
+    { 
+      icon: Calculator, 
+      label: 'Script editor', 
+      action: () => setNotification('Script editor would open'),
+      shortcut: 'Alt+Shift+X'
+    }
+  ],
+  Extensions: [
+    { 
+      icon: Puzzle, 
+      label: 'Add-ons', 
+      action: () => setNotification('Add-ons store would open')
+    },
+    { 
+      icon: Users, 
+      label: 'Apps Script', 
+      action: () => setNotification('Apps Script would open')
+    }
+  ],
+  Help: [
+    { 
+      icon: HelpCircle, 
+      label: 'Help', 
+      action: () => window.open('https://support.google.com/docs/answer/6000292', '_blank'),
+      shortcut: 'F1'
+    },
+    { 
+      icon: Keyboard, 
+      label: 'Keyboard shortcuts', 
+      action: () => setNotification('Keyboard shortcuts: Ctrl+C (copy), Ctrl+V (paste), Ctrl+Z (undo)'),
+      shortcut: 'Ctrl+/'
+    },
+    { 
+      icon: BookOpen, 
+      label: 'Training', 
+      action: () => window.open('https://support.google.com/a/users/answer/9282664', '_blank')
+    }
+  ]
+};
+     
  
  return (
-  <div className="w-full h-screen bg-white flex flex-col">
-    {/* Toolbar */}
-    <div className=" border-b border-gray-200 p-2 flex items-center gap-2 flex-wrap">
-      <div className="relative" ref={dropdownRef}>
-      {/* File Button */}
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        className="flex items-center gap-2 px-3 py-1 text-black rounded hover:bg-gray-100 transition-colors"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
+  <div className="w-full h-screen bg-white flex flex-col font-sans text-gray-800">
+    {/* Main App Container */}
+    <div className="flex flex-col h-full">
+      {/* Top Toolbar */}
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-1">
+        <div className="flex items-center gap-1">
+{Object.keys(menuItems).map((menuName) => (
+  <div key={menuName} className="relative">
+    <button
+      className={`px-3 py-2 rounded hover:bg-gray-200 ${
+        activeMenu === menuName ? 'bg-gray-200' : ''
+      }`}
+      onClick={(e) => handleMenuClick(menuName, e)}
+    >
+      {menuName}
+    </button>
+    
+    {activeMenu === menuName && (
+      <div
+        ref={menuRef}
+        className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-48"
+        style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
       >
-        File
-        <ChevronDown 
-          size={14} 
-          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div 
-          className="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1"
-          role="menu"
-        >
-          {/* Save as Button */}
+        {menuItems[menuName].map((item, index) => (
           <button
-            onClick={exportToCSV}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-            role="menuitem"
+            key={index}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+            onClick={() => {
+              item.action();
+              setActiveMenu(null);
+            }}
           >
-            <Download size={16} className="text-gray-500" />
-            Save as CSV
+            <item.icon size={16} />
+            {item.label}
           </button>
+        ))}
+      </div>
+    )}
+  </div>
+))}
         </div>
-      )}
-    </div>
-      <button className="flex items-center gap-2 px-3 py-1  text-black rounded hover:bg-gray-100 transition-colors">
-        Edit
-      </button>
-      <button className="flex items-center gap-2 px-3 py-1  text-black rounded hover:bg-gray-100 transition-colors">View</button>
-      <button className="flex items-center gap-2 px-3 py-1  text-black rounded hover:bg-gray-100 transition-colors">Format</button>
-      <button className="flex items-center gap-2 px-3 py-1  text-black rounded hover:bg-gray-100 transition-colors">Data</button>
-      <button className="flex items-center gap-2 px-3 py-1  text-black rounded hover:bg-gray-100 transition-colors">Tools</button>
-
-      <div className="flex items-center gap-1">
-        <label className="flex items-center gap-1 px-2 py-1 text-black rounded hover:bg-gray-100 cursor-pointer transition-colors">
-          {/* <Upload size={16} /> */}
-          Insert
-          <input type="file" accept=".csv" onChange={importCSV} className="hidden" />
-        </label>
-
-        {/* <button onClick={exportToCSV} className="flex items-center gap-1 px-2 py-1 text-black rounded hover:bg-gray-100 transition-colors">
-          Save as
-        </button> */}
       </div>
 
-      <div className="flex items-center gap-1">
-        <button onClick={handleGenerateChart} className='flex items-center gap-1 px-2 py-1 text-black rounded hover:bg-gray-100 cursor-pointer transition-colors mr-[20%]'>
-        Charts
-      </button>
-      </div>
-         <div className="relative" ref={dropdownRef}>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowShareDropdown(!showShareDropdown);
-        }}
-        className="bg-blue-200 flex items-center gap-1 ml-[20%] px-4 py-2 text-black rounded hover:bg-blue-300 transition-colors"
-      >
-        <Share2 size={16} />
-        Share
-        <div className="w-[1.5px] h-7 bg-white mx-2"></div>
-        <ChevronDown size={16}/>
-      </button>
-
-      {showShareDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+      {/* Formatting Toolbar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
+          <button 
+            onClick={undo} 
+            disabled={historyIndex === 0}
+            className={`p-1.5 rounded-md ${historyIndex === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+            title="Undo (Ctrl+Z)"
           >
-            <Copy size={16} className="mr-3" />
-            {isCopied ? 'Copied!' : 'Copy link'}
+            <Undo size={18} className="text-gray-700" />
           </button>
-          
-          <button
-            onClick={handleGetShareableLink}
-            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          <button 
+            onClick={redo} 
+            disabled={historyIndex === history.length - 1}
+            className={`p-1.5 rounded-md ${historyIndex === history.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+            title="Redo (Ctrl+Y)"
           >
-            <Link2 size={16} className="mr-3" />
-            Get shareable link
-          </button>
-          
-          <button
-            onClick={handleEmailShare}
-            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            <Mail size={16} className="mr-3" />
-            Email
-          </button>
-          
-          <button
-            onClick={handleShareWithPeople}
-            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            <Users size={16} className="mr-3" />
-            Share with people
+            <Redo size={18} className="text-gray-700" />
           </button>
         </div>
-      )}
-    </div>
-    </div>
 
-    {/* Format Bar */}
-    <div className="bg-white border-b border-gray-200 p-2 flex items-center gap-2 flex-wrap">
-      <div className="flex items-center gap-1 ml-4 relative">
-        <button  className="p-2 hover:bg-gray-200 rounded">
-                        <Undo size={16} />
-                      </button>
-                      <button  className="p-2 hover:bg-gray-200 rounded">
-                        <Redo size={16} />
-                        </button>
-        <button
-          onClick={() => formatCell({
-            fontWeight: cells[selectedCell]?.style?.fontWeight === 'bold' ? 'normal' : 'bold'
-          })}
-          className={`p-2 rounded transition-colors ${cells[selectedCell]?.style?.fontWeight === 'bold' ? 'bg-gray-300' : 'hover:bg-gray-200'}`}
-        >
-          <Bold size={16} />
-        </button>
+        {/* Text Formatting */}
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
+          <button
+            onClick={() => formatCell({
+              fontWeight: cells[selectedCell]?.style?.fontWeight === 'bold' ? 'normal' : 'bold'
+            })}
+            className={`p-1.5 rounded-md ${
+              cells[selectedCell]?.style?.fontWeight === 'bold' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Bold (Ctrl+B)"
+          >
+            <Bold size={18} />
+          </button>
 
-        <button
-          onClick={() => formatCell({
-            fontStyle: cells[selectedCell]?.style?.fontStyle === 'italic' ? 'normal' : 'italic'
-          })}
-          className={`p-2 rounded transition-colors ${cells[selectedCell]?.style?.fontStyle === 'italic' ? 'bg-gray-300' : 'hover:bg-gray-200'}`}
-        >
-          <Italic size={16} />
-        </button>
+          <button
+            onClick={() => formatCell({
+              fontStyle: cells[selectedCell]?.style?.fontStyle === 'italic' ? 'normal' : 'italic'
+            })}
+            className={`p-1.5 rounded-md ${
+              cells[selectedCell]?.style?.fontStyle === 'italic' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Italic (Ctrl+I)"
+          >
+            <Italic size={18} />
+          </button>
 
-        <button
-          onClick={() => formatCell({
-            textDecoration: cells[selectedCell]?.style?.textDecoration === 'underline' ? 'none' : 'underline'
-          })}
-          className={`p-2 rounded transition-colors ${cells[selectedCell]?.style?.textDecoration === 'underline' ? 'bg-gray-300' : 'hover:bg-gray-200'}`}
-        >
-          <Underline size={16} />
-        </button>
+          <button
+            onClick={() => formatCell({
+              textDecoration: cells[selectedCell]?.style?.textDecoration === 'underline' ? 'none' : 'underline'
+            })}
+            className={`p-1.5 rounded-md ${
+              cells[selectedCell]?.style?.textDecoration === 'underline' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'hover:bg-gray-100'
+            }`}
+            title="Underline (Ctrl+U)"
+          >
+            <Underline size={18} />
+          </button>
+        </div>
 
-        <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-        <button
-    onClick={() => formatCell({ textAlign: 'left' })}
-    className={`p-2 rounded transition-colors ${
-      cells[selectedCell]?.style?.textAlign === 'left' ? 'bg-gray-300' : 'hover:bg-gray-200'
-    }`}
-    title="Align left"
-    disabled={!selectedCell}
-  >
-    <AlignLeft size={16} />
-  </button>
-
-  <button
-    onClick={() => formatCell({ textAlign: 'center' })}
-    className={`p-2 rounded transition-colors ${
-      cells[selectedCell]?.style?.textAlign === 'center' ? 'bg-gray-300' : 'hover:bg-gray-200'
-    }`}
-    title="Align center"
-    disabled={!selectedCell}
-  >
-    <AlignCenter size={16} />
-  </button>
-
-  <button
-    onClick={() => formatCell({ textAlign: 'right' })}
-    className={`p-2 rounded transition-colors ${
-      cells[selectedCell]?.style?.textAlign === 'right' ? 'bg-gray-300' : 'hover:bg-gray-200'
-    }`}
-    title="Align right"
-    disabled={!selectedCell}
-  >
-    <AlignRight size={16} />
-  </button>
-
-        <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-        <button className="p-2 hover:bg-gray-200 rounded transition-colors">
-          <DollarSign size={16} />
-        </button>
-
-        <button className="p-2 hover:bg-gray-200 rounded transition-colors">
-          <Percent size={16} />
-        </button>
-
-        <button
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="p-2 hover:bg-gray-200 rounded flex items-center transition-colors"
-        >
-          <span>∑</span>
-        </button>
-
-        {showDropdown && (
-          <div className="absolute top-full left-70 mt-1 flex bg-white border rounded shadow-lg z-10">
-            <div className="w-48 border-r">
-              {functionCategories.map((cat, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedCategory(cat)}
-                  onMouseEnter={() => setSelectedCategory(cat)}
-                  className={`flex justify-between items-center px-4 py-2 text-sm cursor-pointer ${selectedCategory?.name === cat.name ? 'bg-blue-50' : 'hover:bg-gray-100'}`}
-                >
-                  {cat.name}
-                  <span className="ml-2 text-gray-400">›</span>
-                </div>
-              ))}
-            </div>
-
-            {selectedCategory && (
-              <div
-                className="w-35 bg-white overflow-y-auto"
-                style={{ maxHeight: '400px' }}
-                onMouseEnter={() => setIsHoveringSub(true)}
-                onMouseLeave={() => {
-                  setIsHoveringSub(false);
-                  setSelectedCategory(null);
-                }}
+        {/* Alignment */}
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
+          {['left', 'center', 'right'].map((align) => {
+            const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : AlignRight;
+            return (
+              <button
+                key={align}
+                onClick={() => formatCell({ textAlign: align })}
+                className={`p-1.5 rounded-md ${
+                  cells[selectedCell]?.style?.textAlign === align 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'hover:bg-gray-100'
+                }`}
+                title={`Align ${align}`}
               >
-                {selectedCategory.functions.map((func, idx) => (
+                <Icon size={18} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Number Formatting */}
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
+          <button 
+            className="p-1.5 rounded-md hover:bg-gray-100"
+            title="Currency Format"
+          >
+            <DollarSign size={18} />
+          </button>
+          <button 
+            className="p-1.5 rounded-md hover:bg-gray-100"
+            title="Percentage Format"
+          >
+            <Percent size={18} />
+          </button>
+        </div>
+
+        {/* Formula Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1"
+            ref={formulaBtnRef}
+          >
+            <FunctionSquare size={18} />
+            <span className="text-sm font-medium">Functions</span>
+            <ChevronDown size={16} className="text-gray-500" />
+          </button>
+
+          {showDropdown && (
+            <div
+              ref={dropdownRef}
+              className="absolute left-0 mt-1 flex bg-white border border-gray-200 rounded-md shadow-lg z-50"
+              onMouseLeave={() => {
+                if (!isHoveringSub) setShowDropdown(false);
+              }}
+            >
+              <div className="w-48 border-r">
+                {functionCategories.map((cat, idx) => (
                   <div
                     key={idx}
-                    onClick={() => {
-                      insertFunction(func);
-                      setSelectedCategory(null);
-                      setIsHoveringSub(false);
-                    }}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setSelectedCategory(cat)}
+                    onMouseEnter={() => setSelectedCategory(cat)}
+                    className={`flex justify-between items-center px-4 py-2 text-sm cursor-pointer ${
+                      selectedCategory?.name === cat.name
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'hover:bg-gray-100'
+                    }`}
                   >
-                    {func}
+                    {cat.name}
+                    <ChevronDown size={16} className="text-gray-400" />
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
 
-        <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
-          className="p-2 hover:bg-gray-200 rounded transition-colors"
-        >
-          <Palette size={16} />
-        </button>
-
-        {showColorPicker && (
-          <div className="absolute top-full right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
-            <div className="grid grid-cols-6 gap-2 mb-3">
-              {['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF',
-                '#00FFFF', '#FFA500', '#800080', '#008000', '#FFC0CB', '#A52A2A'].map(color => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      formatCell({ color });
-                      setShowColorPicker(false);
-                    }}
-                    className="w-6 h-6 rounded border"
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
-                ))}
+              {selectedCategory && (
+                <div
+                  className="w-48 overflow-y-auto max-h-[300px] bg-white"
+                  onMouseEnter={() => setIsHoveringSub(true)}
+                  onMouseLeave={() => {
+                    setIsHoveringSub(false);
+                    setSelectedCategory(null);
+                  }}
+                >
+                  {selectedCategory.functions.map((func, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        insertFunction(func);
+                        setShowDropdown(false);
+                        setSelectedCategory(null);
+                      }}
+                      className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {func}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="border-t pt-2">
-              <div className="text-sm font-medium mb-2">Background</div>
-              <div className="grid grid-cols-6 gap-2">
-                {['#FFFFFF', '#F0F0F0', '#FFEEEE', '#EEFFEE', '#EEEEFF', '#FFFFEE',
-                  '#FFEEFF', '#EEFFFF', '#FFE4B5', '#E6E6FA', '#F0E68C', '#FFB6C1'].map(color => (
+          )}
+        </div>
+
+        {/* Color Picker */}
+        <div className="relative">
+          <button
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="p-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1"
+          >
+            <Palette size={18} />
+            <ChevronDown size={16} className="text-gray-500" />
+          </button>
+          {showColorPicker && (
+            <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 p-3">
+              <div className="mb-3">
+                <div className="text-xs font-medium text-gray-500 mb-1">Text Color</div>
+                <div className="grid grid-cols-8 gap-1">
+                  {['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        formatCell({ color });
+                        setShowColorPicker(false);
+                      }}
+                      className="w-6 h-6 rounded-md border border-gray-200 hover:ring-2 hover:ring-blue-200"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="border-t pt-3">
+                <div className="text-xs font-medium text-gray-500 mb-1">Fill Color</div>
+                <div className="grid grid-cols-8 gap-1">
+                  {['#FFFFFF', '#FFEEEE', '#EEFFEE', '#EEEEFF', '#FFFFEE', '#FFEEFF', '#EEFFFF', '#FFE4B5'].map(color => (
                     <button
                       key={color}
                       onClick={() => {
                         formatCell({ backgroundColor: color });
                         setShowColorPicker(false);
                       }}
-                      className="w-6 h-6 rounded border"
+                      className="w-6 h-6 rounded-md border border-gray-200 hover:ring-2 hover:ring-blue-200"
                       style={{ backgroundColor: color }}
                       title={color}
                     />
                   ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
 
-    {/* Formula Bar */}
-    <div className="bg-white border-b border-gray-200 p-2 flex items-center gap-2">
-      <div className="flex items-center gap-2">
-        <Calculator size={16} className="text-gray-500" />
-        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded min-w-[40px] font-semibold">
-          {selectedCell}
-        </span>
+        {/* Action Buttons */}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleGenerateChart}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
+          >
+            <BarChart3 size={16} />
+            Create Chart
+          </button>
+          <label className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md shadow-sm cursor-pointer transition-colors">
+            <Upload size={16} />
+            Import CSV
+            <input type="file" accept=".csv" onChange={importCSV} className="hidden" />
+          </label>
+        </div>
       </div>
-      <input
-        type="text"
-        value={formulaBar}
-        onChange={(e) => handleFormulaBarChange(e.target.value)}
-        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        placeholder="Enter formula or value... (e.g., =SUM(A1:A10) or =PMT(0.05/12,360,100000))"
-      />
-    </div>
 
-    {/* Main Content */}
-      <div className="flex-1 flex relative">
-        {/* Spreadsheet Grid */}
+      {/* Formula Bar */}
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-500">fx</span>
+          <span className="font-mono text-sm bg-gray-200 px-2 py-1 rounded font-medium text-gray-700">
+            {selectedCell}
+          </span>
+        </div>
+        <input
+          type="text"
+          value={formulaBar}
+          onChange={(e) => handleFormulaBarChange(e.target.value)}
+          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          placeholder="Enter formula or value..."
+        />
+      </div>
+
+      {/* Spreadsheet Grid */}
+      <div className="flex-1 flex relative overflow-hidden bg-white">
         <div className="flex-1 overflow-auto">
-          <div className="inline-block min-w-full">
-{resizing.active && (
-  <div 
-    className="fixed bg-blue-500 pointer-events-none z-50"
-    style={{
-      [resizing.type === 'col' ? 'left' : 'top']: dragPos,
-      [resizing.type === 'col' ? 'width' : 'height']: '1px',
-      [resizing.type === 'col' ? 'height' : 'width']: resizing.type === 'col' ? '100vh' : '100vw',
-    }}
-  />
-)}
-<table className="border-collapse">
-  <thead>
-    <tr>
-      <th className="w-12 h-8 bg-gray-100 border border-gray-300 text-xs font-medium"></th>
-      {Array.from({ length: COLS }, (_, i) => (
-        <th 
-          key={i} 
-          className="relative bg-gray-100 border border-gray-300 text-xs font-medium"
-          style={{ width: getColWidth(i) }}
-        >
-          {getColumnHeader(i)}
-          <div 
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 active:bg-blue-700"
-            onMouseDown={(e) => handleResizeMouseDown('col', i, e)}
-          ></div>
-        </th>
-      ))}
-    </tr>
-  </thead>
-  <tbody>
-    {Array.from({ length: ROWS }, (_, row) => (
-      <tr key={row}>
-        <td 
-          className="relative w-12 bg-gray-100 border border-gray-300 text-xs font-medium text-center"
-          style={{ height: getRowHeight(row) }}
-        >
-          {row + 1}
-          <div 
-            className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-blue-500 active:bg-blue-700"
-            onMouseDown={(e) => handleResizeMouseDown('row', row, e)}
-          ></div>
-        </td>
-        {Array.from({ length: COLS }, (_, col) => {
-          const cellRef = coordsToCell(row, col);
-          const cell = cells[cellRef];
-          const isSelected = selectedCell === cellRef;
-          
-          return (
-            <td 
-              key={col} 
-              className="border border-gray-300 p-0"
-              style={{ 
-                width: getColWidth(col),
-                height: getRowHeight(row)
-              }}
-            >
-              <input
-                type="text"
-                value={isSelected ? formulaBar : (cell?.display || '')}
-                onChange={(e) => {
-                  if (isSelected) {
-                    handleFormulaBarChange(e.target.value);
-                  }
-                }}
-                onFocus={() => handleCellClick(cellRef)}
-                onClick={() => handleCellClick(cellRef)}
-                className={`w-full h-full px-1 text-xs border-none outline-none ${
-                  isSelected ? 'bg-blue-100 ring-2 ring-blue-500' : 'bg-transparent hover:bg-gray-50'
-                } ${cell?.formula ? 'font-medium' : ''}`}
-                style={{
-                  textAlign: !isNaN(parseFloat(cell?.display || '')) ? 'right' : 'left',
-                  color: cell?.style?.color || 'inherit',
-                  backgroundColor: cell?.style?.backgroundColor || 'inherit',
-                  fontWeight: cell?.style?.fontWeight || 'inherit',
-                  fontStyle: cell?.style?.fontStyle || 'inherit',
-                  textDecoration: cell?.style?.textDecoration || 'inherit',
-                  whiteSpace: cell?.style?.whiteSpace || 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}
-              />
-            </td>
-          );
-        })}
-      </tr>
-    ))}
-  </tbody>
-</table>
-
-
-
-          </div>
+          <table className="border-collapse w-full" style={{ zoom: `${zoom}%` }}>
+            <thead>
+              <tr>
+                <th className="w-10 h-8 bg-gray-100 border border-gray-300 sticky top-0 left-0 z-10"></th>
+                {Array.from({ length: COLS }).map((_, colIndex) => (
+                  <th
+                    key={colIndex}
+                    className="bg-gray-100 border border-gray-300 sticky top-0 z-10"
+                    style={{ width: getColWidth(colIndex) }}
+                    onDoubleClick={() => handleHeaderDoubleClick('col', colIndex)}
+                  >
+                    <div className="relative h-full flex items-center justify-center">
+                      <span className="text-xs font-medium text-gray-700">
+                        {getColumnHeader(colIndex)}
+                      </span>
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500"
+                        onMouseDown={(e) => handleResizeMouseDown('col', colIndex, e)}
+                      />
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: ROWS }).map((_, rowIndex) => (
+                <tr key={rowIndex}>
+                  <th
+                    className="w-10 bg-gray-100 border border-gray-300 sticky left-0 z-10"
+                    onDoubleClick={() => handleHeaderDoubleClick('row', rowIndex)}
+                  >
+                    <div className="relative flex items-center justify-center h-full">
+                      <span className="text-xs font-medium text-gray-700">
+                        {rowIndex + 1}
+                      </span>
+                      <div
+                        className="absolute right-0 bottom-0 left-0 h-1 cursor-row-resize hover:bg-blue-500"
+                        onMouseDown={(e) => handleResizeMouseDown('row', rowIndex, e)}
+                      />
+                    </div>
+                  </th>
+                  {Array.from({ length: COLS }).map((_, colIndex) => {
+                    const cellRef = coordsToCell(rowIndex, colIndex);
+                    const cell = cells[cellRef] || {};
+                    const isSelected = selectedCell === cellRef;
+                    return (
+                      <td
+                        key={colIndex}
+                        className={`border ${showGridlines ? 'border-gray-200' : 'border-transparent'} p-0 ${
+                          isSelected ? 'ring-1 ring-blue-500' : ''
+                        }`}
+                        style={{
+                          ...cell.style,
+                          height: getRowHeight(rowIndex),
+                          backgroundColor: cell.style?.backgroundColor || 'transparent'
+                        }}
+                        onClick={() => handleCellClick(cellRef)}
+                      >
+                        <input
+                          type="text"
+                          className={`w-full h-full px-2 py-1 outline-none text-sm ${
+                            cell.style?.fontWeight === 'bold' ? 'font-semibold' : 'font-normal'
+                          }`}
+                          value={cell.display || ''}
+                          onChange={(e) => handleCellChange(cellRef, e.target.value)}
+                          style={{
+                            textAlign: cell.style?.textAlign || 'left',
+                            color: cell.style?.color || 'inherit',
+                            fontStyle: cell.style?.fontStyle || 'normal',
+                            textDecoration: cell.style?.textDecoration || 'none'
+                          }}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Sheet Tabs */}
-      <div className="bg-gray-50 border-t border-gray-200 p-2 flex items-center gap-2">
-        <div className="flex items-center gap-1">
+      <div className="bg-gray-50 border-t border-gray-200 px-4 py-1 flex items-center gap-2 z-10">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {sheets.map(sheet => (
-            <div key={sheet.id} className="flex items-center">
+            <div key={sheet.id} className="flex items-center shrink-0">
               <button
                 onClick={() => switchSheet(sheet.id)}
-                className={`px-4 py-2 text-sm rounded-t transition-colors ${
-                  sheet.active ? 'bg-white border-t border-l border-r border-gray-300 -mb-px' : 'bg-gray-200 hover:bg-gray-300'
+                className={`px-3 py-1.5 text-sm rounded-t-md transition-colors flex items-center gap-1 ${
+                  sheet.active 
+                    ? 'bg-white border-t-2 border-t-blue-500 border-l border-r border-gray-300 -mb-px font-medium text-gray-900' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
               >
                 {sheet.name}
@@ -1407,30 +2016,47 @@ const handleHeaderDoubleClick = (type, index) => {
               {sheets.length > 1 && (
                 <button
                   onClick={() => deleteSheet(sheet.id)}
-                  className="ml-1 p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  className="ml-1 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               )}
             </div>
           ))}
         </div>
-        
+
         <button
           onClick={addSheet}
-          className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 shrink-0"
         >
           <Plus size={16} />
           Add Sheet
         </button>
-        
-        <div className="ml-auto text-xs text-gray-500">
-          Ready • {Object.keys(cells).filter(key => cells[key]?.value).length} cells with data
+
+        <div className="ml-auto text-xs text-gray-500 shrink-0">
+          {Object.keys(cells).filter(key => cells[key]?.value).length} cells with data
         </div>
       </div>
+    </div>
+
+    {/* Notification */}
+    {notification && (
+      <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm animate-fade-in">
+        {notification}
+      </div>
+    )}
+
+    {/* Hidden file input for opening files */}
+    <input 
+      type="file" 
+      ref={fileInputRef} 
+      onChange={handleFileLoad} 
+      className="hidden" 
+      accept=".json,.csv"
+    />
   </div>
 );
 
+
 };
 
-export default SpreadsheetApp;
