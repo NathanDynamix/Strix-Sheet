@@ -1,14 +1,15 @@
 import React from 'react'
 import {Route, Routes} from "react-router-dom";
 import { Toaster } from 'sonner'
-import Test from './component/Test'
-import Test2 from './component/Test2'
-import Test3 from './component/Test3'
+import Test from './component/SpreadsheetModel'
+import Test2 from './component/FormulaModel'
+import Test3 from './component/FormulaWorking'
 import Test4 from './component/Integration'
 import SpreadsheetPage from './component/SpreadsheetPage';
-import Test5 from './component/Test5';
-import Test6 from './component/Test6';
+import Test5 from './component/PowerBIDashboard';
+import Test6 from './component/StrixChart';
 import Menu from './component/Menubar';
+import Test7 from './component/Image&Link';
 
 
 
@@ -27,6 +28,7 @@ const App = () => {
         <Route path="/test3" element={<Test3/>}/>
         <Route path="/test5" element={<Test5/>}/>
         <Route path="/test6" element={<Test6/>}/>
+        <Route path="/test7" element={<Test7/>}/>
       </Routes>
       </div>
       <Toaster richColors position="top-center" />

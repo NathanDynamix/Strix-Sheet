@@ -5,7 +5,7 @@ Download, Upload, Share2, BarChart3, Calculator, Save, Plus, Trash2,
   ChevronDown, WrapText, Mail, Link2, Users, Undo, Redo, Copy, 
   FileText, Folder, Clock, Undo2, Redo2, Scissors, Grid3X3, Eye, 
   ZoomIn, ZoomOut, Maximize, ArrowUpDown, Filter, Shield, Table, Settings, 
-  Puzzle, HelpCircle, BookOpen, Clipboard, Image,  Keyboard
+  Puzzle, HelpCircle, BookOpen, Clipboard, Image,  Keyboard,Link
 } from 'lucide-react';
 
 import { useSpreadsheetData } from '../context/SpreadsheetDataContext';
@@ -98,7 +98,20 @@ const menuRef = useRef(null);
   const [history, setHistory] = useState([{}]); 
   const [sheetName, setSheetName] = useState('Untitled spreadsheet');
   const [images, setImages] = useState([]);
- 
+ const [validationDialog, setValidationDialog] = useState({
+  show: false,
+  cell: null,
+  type: 'number',
+  condition: 'between',
+  min: '',
+  max: '',
+  list: '',
+  customFormula: '',
+  inputMessage: '',
+  errorMessage: 'Invalid input'
+});
+
+const [validations, setValidations] = useState({});
 
 const [filterActive, setFilterActive] = useState(false);
 const [sortDialog, setSortDialog] = useState({ show: false, column: 0, ascending: true });
@@ -137,9 +150,21 @@ const [isHoveringSub, setIsHoveringSub] = useState(false);
 const [colWidths, setColWidths] = useState({});
 const [rowHeights, setRowHeights] = useState({});
 const [resizing, setResizing] = useState({ active: false, type: null, index: null, startPos: 0 });
+const [linkText, setLinkText] = useState('');
+const [linkUrl, setLinkUrl] = useState('');
+const [showLinkDialog, setShowLinkDialog] = useState(false);
 const [dragPos, setDragPos] = useState(null);
 const [uploadedImages, setUploadedImages] = useState([]);
 const { setSpreadsheetData, setDataSource } = useSpreadsheetData();
+
+  const [showImageDialog, setShowImageDialog] = useState(false);
+  
+  const [imageUrl, setImageUrl] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
+  const [activeTab, setActiveTab] = useState('url');
+  const [currentInput, setCurrentInput] = useState('');
+  const [isLoadingLink, setIsLoadingLink] = useState(false);
+ 
 
 
 const DEFAULT_COL_WIDTH = 80;
@@ -190,7 +215,57 @@ const getColumnLabel = (index) => String.fromCharCode(65 + index);
     setNotification(message);
     setTimeout(() => setNotification(null), 3000);
   };
+const handleImageInsert = () => {
+    setShowImageDialog(true);
+    setImageUrl('');
+    setPreviewImage(null);
+    setActiveTab('url');
+  };
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
+  const handleUrlChange = (e) => {
+    const url = e.target.value;
+    setImageUrl(url);
+    if (url && (url.startsWith('http') || url.startsWith('data:'))) {
+      setPreviewImage(url);
+    } else {
+      setPreviewImage(null);
+    }
+  };
+
+  const insertImage = () => {
+    if (selectedCell && previewImage) {
+      const cellKey = getCellKey(selectedCell.row, selectedCell.col);
+      setCells(prev => ({
+        ...prev,
+        [cellKey]: {
+          type: 'image',
+          src: previewImage,
+          value: activeTab === 'url' ? imageUrl : 'Uploaded Image'
+        }
+      }));
+      setShowImageDialog(false);
+      setPreviewImage(null);
+      setImageUrl('');
+      setCurrentInput('');
+    }
+  };
+  const removeImage = (row, col) => {
+    const cellKey = getCellKey(row, col);
+    setCells(prev => ({
+      ...prev,
+      [cellKey]: { value: '', type: 'text' }
+    }));
+  };
 
 
 const saveToHistory = (currentCells) => {
@@ -604,6 +679,15 @@ useEffect(() => {
 }, [cells]);
 
   const handleCellChange = (cellRef, value) => {
+  // Check validation if it exists
+  if (validations[cellRef]) {
+    const isValid = validations[cellRef].validator(value);
+    if (!isValid) {
+      alert(validations[cellRef].errorMessage);
+      return; // Don't update the cell if invalid
+    }
+  }
+
   setCells(prev => {
     const newCells = { ...prev };
     const isFormula = value.startsWith('=');
@@ -1088,12 +1172,129 @@ const downloadCSV = (csvData, filename) => {
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
+const handleInputChange = async (value) => {
+    setCurrentInput(value);
+    const cellKey = getCellKey(selectedCell.row, selectedCell.col);
+    
+    // Check if the input is a URL
+    if (isValidUrl(value)) {
+      setIsLoadingLink(true);
+      try {
+        const title = await fetchPageTitle(value);
+        setCells(prev => ({
+          ...prev,
+          [cellKey]: { 
+            value: title, 
+            type: 'link', 
+            url: value,
+            displayText: title
+          }
+        }));
+        setCurrentInput(title);
+      } catch (error) {
+        setCells(prev => ({
+          ...prev,
+          [cellKey]: { value, type: 'text' }
+        }));
+      }
+      setIsLoadingLink(false);
+    } else {
+      setCells(prev => ({
+        ...prev,
+        [cellKey]: { ...prev[cellKey], value, type: 'text' }
+      }));
+    }
+  };
+  const insertLink = () => {
+    if (selectedCell && linkText && linkUrl) {
+      const cellKey = getCellKey(selectedCell.row, selectedCell.col);
+      setCells(prev => ({
+        ...prev,
+        [cellKey]: {
+          type: 'link',
+          value: linkText,
+          displayText: linkText,
+          url: linkUrl
+        }
+      }));
+      setCurrentInput(linkText);
+      setShowLinkDialog(false);
+      setLinkText('');
+      setLinkUrl('');
+    }
+  };
+   const removeLink = (row, col) => {
+    const cellKey = getCellKey(row, col);
+    const currentCell = cells[cellKey];
+    setCells(prev => ({
+      ...prev,
+      [cellKey]: { value: currentCell.displayText || currentCell.value, type: 'text' }
+    }));
+  };
 
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
+const applyValidation = () => {
+  const { cell, type, condition, min, max, list, customFormula, inputMessage, errorMessage } = validationDialog;
+  
+  let validator;
+  
+  switch (type) {
+    case 'number':
+      validator = (value) => {
+        const num = parseFloat(value);
+        if (isNaN(num)) return false;
+        
+        switch (condition) {
+          case 'between': 
+            return num >= parseFloat(min) && num <= parseFloat(max);
+          case 'greater': 
+            return num > parseFloat(min);
+          case 'less': 
+            return num < parseFloat(min);
+          case 'equal': 
+            return num === parseFloat(min);
+          case 'notEqual': 
+            return num !== parseFloat(min);
+          default: 
+            return true;
+        }
+      };
+      break;
+      
+    case 'list':
+      const items = list.split(',').map(item => item.trim());
+      validator = (value) => items.includes(value);
+      break;
+      
+    case 'custom':
+      validator = (value) => {
+        try {
+          // This is a simplified implementation - you'd need a proper formula evaluator
+          return eval(customFormula.replace(/=/g, '').replace(/value/g, value));
+        } catch {
+          return false;
+        }
+      };
+      break;
+      
+    default:
+      validator = () => true;
+  }
+  
+  setValidations(prev => ({
+    ...prev,
+    [cell]: {
+      validator,
+      inputMessage,
+      errorMessage
+    }
+  }));
+  
+  setNotification(`Validation rules set for ${cell}`);
+  setValidationDialog({...validationDialog, show: false});
+};
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -1284,7 +1485,30 @@ const toggleGridlines = () => {
   setShowGridlines(!showGridlines);
   console.log('After toggle:', !showGridlines); // Debug
 };
-
+const generatePivotTable = (cells, startPosition) => {
+  const pivotData = {};
+  
+  // Get column letters (assuming data starts from column A)
+  const valueCol = 'B'; // Column with values to sum
+  const categoryCol = 'A'; // Column with categories
+  
+  // Analyze data (assuming data starts from row 2)
+  for (let row = 2; row <= 100; row++) {
+    const categoryCell = `${categoryCol}${row}`;
+    const valueCell = `${valueCol}${row}`;
+    
+    if (cells[categoryCell] && cells[valueCell]) {
+      const category = cells[categoryCell].display || cells[categoryCell].value;
+      const value = parseFloat(cells[valueCell].display || cells[valueCell].value) || 0;
+      
+      if (category) {
+        pivotData[category] = (pivotData[category] || 0) + value;
+      }
+    }
+  }
+  
+  return pivotData;
+};
  const menuItems = {
   File: [
     { 
@@ -1492,7 +1716,7 @@ const toggleGridlines = () => {
     {
   icon: Link2,
   label: 'Link',
-  action: () => handleLinkInsertion(selectedCell, cells, setCells, setNotification),
+  action: () => handleLinkInsert,
   shortcut: 'Ctrl+K'
 }
   ],
@@ -1615,25 +1839,76 @@ const toggleGridlines = () => {
       label: filterActive ? 'Remove filter' : 'Create filter', 
       action: toggleFilter
     },
-    { 
-      icon: Shield, 
-      label: 'Data validation', 
-      action: () => {
-        if (selectedCell) {
-          const rules = prompt('Enter validation rules (e.g., number>0):');
-          if (rules) {
-            setNotification(`Validation rules set for ${selectedCell}`);
-          }
-        }
-      }
-    },
-    { 
-      icon: Table, 
-      label: 'Pivot table', 
-      action: () => {
-        setNotification('Pivot table would analyze selected data');
-      }
+    {
+  icon: Shield,
+  label: 'Data validation',
+  action: () => {
+    if (!selectedCell) {
+      setNotification('Please select a cell first');
+      return;
     }
+
+    // Open a validation dialog
+    setValidationDialog({
+      show: true,
+      cell: selectedCell,
+      type: 'number', // default
+      condition: 'between',
+      min: '',
+      max: '',
+      list: '',
+      customFormula: '',
+      inputMessage: '',
+      errorMessage: 'Invalid input'
+    });
+  }
+},
+    {
+  icon: Table,
+  label: 'Pivot table',
+  action: () => {
+    if (!selectedCell) {
+      setNotification('Please select a cell first to define the pivot table location');
+      return;
+    }
+
+    // Get the selected cell coordinates
+    const col = selectedCell.replace(/\d+/g, '');
+    const row = parseInt(selectedCell.match(/\d+$/)[0]);
+    
+    // Create a simple pivot table structure
+    const pivotTableData = generatePivotTable(cells, { row, col });
+    
+    // Update cells with pivot table
+    setCells(prev => {
+      const newCells = {...prev};
+      
+      // Add pivot table headers
+      newCells[`${col}${row}`] = { value: 'Category', display: 'Category' };
+      newCells[`${String.fromCharCode(col.charCodeAt(0) + 1)}${row}`] = { 
+        value: 'Sum', 
+        display: 'Sum' 
+      };
+      
+      // Add pivot table data
+      Object.entries(pivotTableData).forEach(([category, sum], index) => {
+        const currentRow = row + index + 1;
+        newCells[`${col}${currentRow}`] = { 
+          value: category, 
+          display: category 
+        };
+        newCells[`${String.fromCharCode(col.charCodeAt(0) + 1)}${currentRow}`] = { 
+          value: sum.toString(), 
+          display: sum.toString() 
+        };
+      });
+      
+      return newCells;
+    });
+    
+    setNotification('Pivot table created');
+  }
+}
   ],
   Tools: [
     {
@@ -1713,42 +1988,14 @@ const toggleGridlines = () => {
   ]
 };
 
-function handleLinkInsertion(selectedCell, setCells, setNotification) {
-  if (!selectedCell) {
-    setNotification('Please select a cell first');
-    return;
-  }
-
-  // Get current cell text
-  const currentText = cells[selectedCell]?.value || '';
-
-  // Google Sheets-style dialog
-  const url = prompt('Enter URL (e.g., https://example.com):');
-  if (!url) return; // User cancelled
-
-  // Get display text (defaults to URL if empty)
-  const displayText = prompt('Enter text to display (optional):', currentText) || url;
-
-  // Create Google Sheets-style link
-  setCells(prev => ({
-    ...prev,
-    [selectedCell]: {
-      ...prev[selectedCell],
-      value: displayText,
-      linkUrl: url.startsWith('http') ? url : `https://${url}`,
-      isLink: true,
-      // Special formatting like Google Sheets
-      style: {
-        ...prev[selectedCell]?.style,
-        color: '#1155cc',
-        textDecoration: 'underline',
-        cursor: 'pointer'
-      }
-    }
-  }));
-
-  setNotification('Link created! Click to open.');
-}
+const handleLinkInsert = () => {
+    const cellKey = getCellKey(selectedCell.row, selectedCell.col);
+    const currentCell = cells[cellKey];
+    
+    setLinkText(currentCell?.type === 'link' ? currentCell.displayText : currentCell?.value || '');
+    setLinkUrl(currentCell?.type === 'link' ? currentCell.url : '');
+    setShowLinkDialog(true);
+  };
 
 function handleImageUpload(setNotification) {
   return new Promise((resolve) => {
@@ -1922,6 +2169,20 @@ function handleImageUpload(setNotification) {
           >
             <Undo size={18} className="text-gray-700" />
           </button>
+          <button
+                          onClick={handleLinkInsert}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <Link size={16} />
+                          Link
+                        </button>
+                        <button
+                                        onClick={handleImageInsert}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                      >
+                                        <Image size={16} />
+                                        Image
+                                      </button>
           <button 
             onClick={redo} 
             disabled={historyIndex === history.length - 1}
@@ -2420,7 +2681,323 @@ function handleImageUpload(setNotification) {
     </div>
   </div>
 )}
+{validationDialog.show && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg shadow-xl p-6 w-96">
+      <h3 className="text-lg font-medium mb-4">Data Validation for {validationDialog.cell}</h3>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Validation type</label>
+          <select
+            value={validationDialog.type}
+            onChange={(e) => setValidationDialog({...validationDialog, type: e.target.value})}
+            className="w-full border rounded p-2"
+          >
+            <option value="number">Number</option>
+            <option value="text">Text</option>
+            <option value="date">Date</option>
+            <option value="list">List from range</option>
+            <option value="custom">Custom formula</option>
+          </select>
+        </div>
 
+        {validationDialog.type === 'number' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">Condition</label>
+              <select
+                value={validationDialog.condition}
+                onChange={(e) => setValidationDialog({...validationDialog, condition: e.target.value})}
+                className="w-full border rounded p-2"
+              >
+                <option value="between">Between</option>
+                <option value="greater">Greater than</option>
+                <option value="less">Less than</option>
+                <option value="equal">Equal to</option>
+                <option value="notEqual">Not equal to</option>
+              </select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {validationDialog.condition === 'between' ? 'Minimum' : 'Value'}
+                </label>
+                <input
+                  type="number"
+                  value={validationDialog.min}
+                  onChange={(e) => setValidationDialog({...validationDialog, min: e.target.value})}
+                  className="w-full border rounded p-2"
+                />
+              </div>
+              
+              {validationDialog.condition === 'between' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Maximum</label>
+                  <input
+                    type="number"
+                    value={validationDialog.max}
+                    onChange={(e) => setValidationDialog({...validationDialog, max: e.target.value})}
+                    className="w-full border rounded p-2"
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {validationDialog.type === 'list' && (
+          <div>
+            <label className="block text-sm font-medium mb-1">List items (comma separated)</label>
+            <input
+              type="text"
+              value={validationDialog.list}
+              onChange={(e) => setValidationDialog({...validationDialog, list: e.target.value})}
+              className="w-full border rounded p-2"
+              placeholder="e.g., Yes,No,Maybe"
+            />
+          </div>
+        )}
+
+        {validationDialog.type === 'custom' && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Custom formula</label>
+            <input
+              type="text"
+              value={validationDialog.customFormula}
+              onChange={(e) => setValidationDialog({...validationDialog, customFormula: e.target.value})}
+              className="w-full border rounded p-2"
+              placeholder="e.g., =A1>B1"
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Input message (optional)</label>
+          <input
+            type="text"
+            value={validationDialog.inputMessage}
+            onChange={(e) => setValidationDialog({...validationDialog, inputMessage: e.target.value})}
+            className="w-full border rounded p-2"
+            placeholder="e.g., Enter a number between 1 and 100"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Error message</label>
+          <input
+            type="text"
+            value={validationDialog.errorMessage}
+            onChange={(e) => setValidationDialog({...validationDialog, errorMessage: e.target.value})}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <button
+            onClick={() => setValidationDialog({...validationDialog, show: false})}
+            className="px-4 py-2 border rounded"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={applyValidation}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+{showLinkDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-medium text-gray-900">Insert link</h2>
+              <button
+                onClick={() => setShowLinkDialog(false)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Text
+                </label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Enter text to display"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link
+                </label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="Paste or type a link"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {linkUrl && !linkUrl.startsWith('http') && (
+                <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <p>Links should start with http:// or https://</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowLinkDialog(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={insertLink}
+                disabled={!linkText.trim() || !linkUrl.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+       {showImageDialog && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-medium text-gray-900">Insert image</h2>
+                    <button
+                      onClick={() => setShowImageDialog(false)}
+                      className="text-gray-400 hover:text-gray-600 p-1"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+      
+                  <div className="p-6">
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-gray-200 mb-6">
+                      <button
+                        onClick={() => setActiveTab('url')}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                          activeTab === 'url'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <Link size={16} className="inline mr-2" />
+                        Insert by URL
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('upload')}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                          activeTab === 'upload'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <Upload size={16} className="inline mr-2" />
+                        Upload
+                      </button>
+                    </div>
+      
+                    {/* URL Tab */}
+                    {activeTab === 'url' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Paste the image URL
+                          </label>
+                          <input
+                            type="url"
+                            value={imageUrl}
+                            onChange={handleUrlChange}
+                            placeholder="Paste image URL here"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+      
+                    {/* Upload Tab */}
+                    {activeTab === 'upload' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Upload an image file
+                          </label>
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                          >
+                            <Upload size={32} className="mx-auto text-gray-400 mb-3" />
+                            <p className="text-base text-gray-700 mb-1">Drag an image here</p>
+                            <p className="text-sm text-gray-500">or click to upload</p>
+                          </div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </div>
+                      </div>
+                    )}
+      
+                    {/* Preview */}
+                    {previewImage && (
+                      <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Eye size={16} className="text-gray-600" />
+                          <span className="text-sm font-medium text-gray-700">Preview</span>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                          <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="max-w-full max-h-64 mx-auto object-contain rounded"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+      
+                  {/* Dialog Actions */}
+                  <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+                    <button
+                      onClick={() => setShowImageDialog(false)}
+                      className="px-6 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={insertImage}
+                      disabled={!previewImage}
+                      className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      Insert image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
     {/* Notification */}
     {notification && (
   <div className="fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm animate-fade-in z-50">
