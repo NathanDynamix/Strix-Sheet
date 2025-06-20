@@ -1445,7 +1445,7 @@ const handleDownloadChartImage = (format = 'png') => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <BarChart2 className="mr-3 text-blue-600" size={28} />
-            Charts
+            Strix Charts
           </h1>
           <p className="text-gray-600 mt-1">Transform your data into actionable insights</p>
         </div>
