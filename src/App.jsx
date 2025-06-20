@@ -1,14 +1,14 @@
 import React from 'react'
 import {Route, Routes} from "react-router-dom";
 import { Toaster } from 'sonner'
-import Test from './Pages/Test'
-import Test2 from './Pages/Test2'
-import Test3 from './Pages/Test3'
-import Test4 from './Pages/Integration'
-import SpreadsheetPage from './Pages/SpreadsheetPage';
-import Test5 from './Pages/Test5';
-import Test6 from './Pages/Test6';
-import Menu from './Pages/Menubar';
+import Test from './component/Test'
+import Test2 from './component/Test2'
+import Test3 from './component/Test3'
+import Test4 from './component/Integration'
+import SpreadsheetPage from './component/SpreadsheetPage';
+import Test5 from './component/Test5';
+import Test6 from './component/Test6';
+import Menu from './component/Menubar';
 
 
 

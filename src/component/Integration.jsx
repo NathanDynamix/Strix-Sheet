@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useCallback,useRef } from 'react';
+import  { useState, useEffect, useCallback,useRef } from 'react';
 import {
-Download, Upload, Share2, BarChart3, Calculator, Grid, Save, Plus, Trash2,
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, PieChart,
-  LineChart, TrendingUp, FunctionSquare, X, Search, DollarSign, Percent, Palette, 
-  Calendar, ChevronDown, WrapText, Mail, Link2, Users, Undo, Redo, Copy, 
-  FileText, Folder, Printer, Clock, Undo2, Redo2, Scissors, Grid3X3, Eye, 
+Download, Upload, Share2, BarChart3, Calculator, Save, Plus, Trash2,
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, FunctionSquare, X, Search, DollarSign, Percent, Palette, 
+  ChevronDown, WrapText, Mail, Link2, Users, Undo, Redo, Copy, 
+  FileText, Folder, Clock, Undo2, Redo2, Scissors, Grid3X3, Eye, 
   ZoomIn, ZoomOut, Maximize, ArrowUpDown, Filter, Shield, Table, Settings, 
   Puzzle, HelpCircle, BookOpen, Clipboard, Image,  Keyboard
 } from 'lucide-react';
 
 import { useSpreadsheetData } from '../context/SpreadsheetDataContext';
-import { useNavigate,Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 const functionCategories = [
   {
     name: 'Math',
@@ -96,27 +95,32 @@ export default function SpreadsheetApp(){
   const [activeMenu, setActiveMenu] = useState(null);
 const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 const menuRef = useRef(null);
-  const [history, setHistory] = useState([{}]); // Initial empty state
+  const [history, setHistory] = useState([{}]); 
   const [sheetName, setSheetName] = useState('Untitled spreadsheet');
-const [clipboard, setClipboard] = useState(null);
-const [findReplace, setFindReplace] = useState({ show: false, find: '', replace: '' });
+  const [images, setImages] = useState([]);
+ 
+
 const [filterActive, setFilterActive] = useState(false);
 const [sortDialog, setSortDialog] = useState({ show: false, column: 0, ascending: true });
 const [chartDialog, setChartDialog] = useState({ show: false, type: 'line' });
 const [chartData, setChartData] = useState([]);
 const [zoom, setZoom] = useState(100);
-const [showGridlines, setShowGridlines] = useState(true);
 const [showFormulas, setShowFormulas] = useState(false);
 const [notification, setNotification] = useState(null);
 const fileInputRef = useRef(null);
+const [clipboard, setClipboard] = useState({
+  value: null,
+  formula: null,
+  display: null,
+  style: null,
+  action: null 
+});
 const [historyIndex, setHistoryIndex] = useState(0);
-  const [cells, setCells] = useState({});
+ const [cells, setCells] = useState({});
+const [selectedCell, setSelectedCell] = useState(null);
   const navigate = useNavigate();
  const [showShareDropdown, setShowShareDropdown] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
   const dropdownRef = useRef(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedCell, setSelectedCell] = useState('A1');
   const [selectedCategory, setSelectedCategory] = useState(null);
 const [isHoveringSub, setIsHoveringSub] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -125,22 +129,23 @@ const [isHoveringSub, setIsHoveringSub] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [activeSheet, setActiveSheet] = useState(1);
   const [showChart, setShowChart] = useState(false);
-  const [chartType, setChartType] = useState('bar');
   const [showFunctions, setShowFunctions] = useState(false);
   const [functionSearch, setFunctionSearch] = useState('');
   const [selectedRange, setSelectedRange] = useState('');
   const formulaBtnRef = useRef(null);
-  // Add these state variables at the top of your component
+  const [showHistory, setShowHistory] = useState(false);
 const [colWidths, setColWidths] = useState({});
 const [rowHeights, setRowHeights] = useState({});
 const [resizing, setResizing] = useState({ active: false, type: null, index: null, startPos: 0 });
 const [dragPos, setDragPos] = useState(null);
+const [uploadedImages, setUploadedImages] = useState([]);
+const { setSpreadsheetData, setDataSource } = useSpreadsheetData();
 
-// Default dimensions
+
 const DEFAULT_COL_WIDTH = 80;
 const DEFAULT_ROW_HEIGHT = 24;
 
-// Helper functions for resizing
+
 const getColWidth = (col) => colWidths[col] || DEFAULT_COL_WIDTH;
 const getRowHeight = (row) => rowHeights[row] || DEFAULT_ROW_HEIGHT;
 const getColumnLabel = (index) => String.fromCharCode(65 + index);
@@ -171,12 +176,15 @@ const getColumnLabel = (index) => String.fromCharCode(65 + index);
     addToHistory(cellData, newStyles);
   };
 
-  const addToHistory = (data, styles) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({ data, styles });
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
+  const addToHistory = (currentCells) => {
+  const newHistory = history.slice(0, historyIndex + 1);
+  newHistory.push({
+    cells: JSON.parse(JSON.stringify(currentCells)),
+    timestamp: new Date().toISOString()
+  });
+  setHistory(newHistory);
+  setHistoryIndex(newHistory.length - 1);
+};
 
   const showNotification = (message) => {
     setNotification(message);
@@ -184,31 +192,17 @@ const getColumnLabel = (index) => String.fromCharCode(65 + index);
   };
 
 
-// Call this whenever cells change to save to history
-const saveToHistory = (currentCells) => {
-  // Don't save if no changes from current state
-  if (JSON.stringify(currentCells) === JSON.stringify(history[historyIndex])) {
-    return;
-  }
 
-  // If we're not at the end of history, truncate future states
-  const newHistory = history.slice(0, historyIndex + 1);
-  
-  setHistory([...newHistory, JSON.parse(JSON.stringify(currentCells))]);
-  setHistoryIndex(newHistory.length);
-};
-const handleMenuClick = (menuName, event) => {
-  if (activeMenu === menuName) {
-    setActiveMenu(null);
-  } else {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + window.scrollY,
-      left: rect.left + window.scrollX
-    });
-    setActiveMenu(menuName);
+const saveToHistory = (currentCells) => {
+  const newHistory = [...history];
+  // Only save if there are actual changes
+  if (JSON.stringify(currentCells) !== JSON.stringify(newHistory[newHistory.length - 1])) {
+    newHistory.push(JSON.parse(JSON.stringify(currentCells)));
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
   }
 };
+
 useEffect(() => {
   const handleClickOutside = (event) => {
     if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -234,7 +228,7 @@ const redo = () => {
     setCells(history[historyIndex + 1]);
   }
 };
-// Mouse handlers for resizing
+
 const handleResizeMouseDown = (type, index, e) => {
   setResizing({
     active: true,
@@ -267,24 +261,14 @@ useEffect(() => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
-
-const { setSpreadsheetData, setDataSource } = useSpreadsheetData();
-
-  // Your existing state and functions...
-
  const handleGenerateChart = () => {
-  // Track which columns have non-zero values
   const activeColumns = new Set();
   const allHeaders = [];
   
-  // First pass: Scan all data to find columns with actual values
   for (let row = 2; row <= 101; row++) {
     for (let col = 0; col < 26; col++) {
       const cellRef = `${String.fromCharCode(65 + col)}${row}`;
       const value = cells[cellRef]?.display;
-      
-      // Check if value exists and is not zero/empty
       if (value && value !== "0" && value !== 0 && value !== "0.0") {
         activeColumns.add(col);
       }
@@ -355,7 +339,6 @@ const handleResizeMouseUp = () => {
   setDragPos(null);
 };
 
-// Add these event listeners to useEffect
 useEffect(() => {
   document.addEventListener('mousemove', handleResizeMouseMove);
   document.addEventListener('mouseup', handleResizeMouseUp);
@@ -630,16 +613,15 @@ useEffect(() => {
       display: isFormula ? evaluateFormula(value, cellRef) : value 
     };
     
-    // Save to history after state update
     setTimeout(() => saveToHistory(newCells), 0);
     return newCells;
   });
 };
 
   const handleCellClick = (cellRef) => {
-    setSelectedCell(cellRef);
-    setFormulaBar(cells[cellRef]?.value || '');
-  };
+  setSelectedCell(cellRef);
+  setFormulaBar(cells[cellRef]?.value || '');
+};
 
   const handleFormulaBarChange = (value) => {
     setFormulaBar(value);
@@ -654,45 +636,23 @@ useEffect(() => {
     handleCellChange(selectedCell, newFormula);
   };
 
-  // Add to your formatCell function
+
+
 const formatCell = (styleUpdates) => {
-  // Return early if no cell is selected
   if (!selectedCell) return;
-
-  setCells(prevCells => {
-    // Create a new copy of the cells object
-    const newCells = { ...prevCells };
-    
-    // Ensure the selected cell exists
-    if (!newCells[selectedCell]) {
-      newCells[selectedCell] = { value: '', formula: '', display: '', style: {} };
-    }
-
-    // Update the cell's style
-    newCells[selectedCell] = {
-      ...newCells[selectedCell],
+  
+  setCells(prev => ({
+    ...prev,
+    [selectedCell]: {
+      ...prev[selectedCell],
       style: {
-        ...newCells[selectedCell].style, // Keep existing styles
-        ...styleUpdates                 // Apply new styles
+        ...prev[selectedCell]?.style,
+        ...styleUpdates
       }
-    };
-
-    return newCells;
-  });
-
-  // Save to undo history
-  saveToHistory(cells);
+    }
+  }));
 };
 
-// Add this to your CSS or style object to make the alignment work
-// This should be in your stylesheet or at the top of your component
-const cellStyle = {
-  textAlign: 'left', // default alignment
-  // ... other default styles
-};
-
-
-// Add a text wrap button to your toolbar
 <button 
   onClick={() => formatCell({ 
     whiteSpace: cells[selectedCell]?.style?.whiteSpace === 'normal' ? 'nowrap' : 'normal' 
@@ -716,44 +676,22 @@ const renderCell = (cellRef) => {
     </td>
   );
 };
-
- const generateAdvancedChart = (options = {}) => {
-  const {
-    minRow = 1,
-    maxRow = 10,
-    labelCol = 0,
-    valueCol = 1,
-    includeZeroValues = false,
-    skipEmptyLabels = true
-  } = options;
-
-  const data = [];
-  let seriesCount = 1;
-
-  for (let row = minRow; row <= maxRow; row++) {
-    const labelCell = coordsToCell(row, labelCol);
-    const valueCell = coordsToCell(row, valueCol);
-    
-    const label = cells[labelCell]?.display?.toString().trim() || '';
-    const rawValue = cells[valueCell]?.display;
-    const value = parseFloat(rawValue) || 0;
-    
-    // Skip conditions
-    if (skipEmptyLabels && label === '') continue;
-    if (!includeZeroValues && value === 0) continue;
-    if (label === '' && rawValue === undefined) continue;
-    
-    data.push({
-      label: label || `Series ${seriesCount++}`,
-      value,
-      color: `hsl(${row * 36}, 70%, 50%)`
-    });
+function renderCellContent(cell) {
+  if (cell.isLink && cell.linkUrl) {
+    return (
+      <a 
+        href={cell.linkUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()} // Prevent cell selection when clicking link
+        style={{ color: 'blue', textDecoration: 'underline' }}
+      >
+        {cell.value}
+      </a>
+    );
   }
-
-  setChartData(data);
-  setShowChart(data.length > 0);
-  
-};
+  return cell.value;
+}
 
   const exportToCSV = () => {
     let csvContent = '';
@@ -774,20 +712,20 @@ const renderCell = (cellRef) => {
     a.click();
     URL.revokeObjectURL(url);
   };
-  // Add this handler for double-click auto-resize
+
 const handleHeaderDoubleClick = (type, index) => {
   if (type === 'col') {
-    // Auto-size column based on content
+  
     let maxWidth = DEFAULT_COL_WIDTH;
     
     for (let row = 0; row < ROWS; row++) {
       const cellRef = coordsToCell(row, index);
       const cell = cells[cellRef];
       if (cell?.display) {
-        // Approximate text width (10px per character)
+        
         const textWidth = cell.display.length * 10;
         if (textWidth > maxWidth) {
-          maxWidth = Math.min(300, textWidth + 10); // Add padding
+          maxWidth = Math.min(300, textWidth + 10); 
         }
       }
     }
@@ -816,7 +754,7 @@ const handleHeaderDoubleClick = (type, index) => {
   }
 };
 
-// Update your column and row headers to include onDoubleClick
+
 
   const importCSV = (event) => {
     const file = event.target.files[0];
@@ -871,485 +809,493 @@ const handleHeaderDoubleClick = (type, index) => {
     }
   };
 
-  const downloadChart = () => {
-    if (!chartData.length) return;
-    
-    const svgElement = document.querySelector('.chart-container svg');
-    if (!svgElement) return;
-    
-    const serializer = new XMLSerializer();
-    let svgStr = serializer.serializeToString(svgElement);
-    svgStr = '<?xml version="1.0" standalone="no"?>\r\n' + svgStr;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pngFile;
-      downloadLink.download = `chart-${new Date().toISOString().slice(0,10)}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-    };
-    
-    const svgBlob = new Blob([svgStr], {type: 'image/svg+xml;charset=utf-8'});
-    const url = URL.createObjectURL(svgBlob);
-    img.src = url;
-  };
-
-  const renderChart = () => {
-    if (!chartData.length) return null;
-
-    switch (chartType) {
-      case 'pie':
-        const total = chartData.reduce((sum, item) => sum + item.value, 0);
-        if (total === 0) return null;
-        
-        let currentAngle = 0;
-        return (
-          <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
-            <g transform="translate(150,150)">
-              {chartData.map((item, index) => {
-                const percentage = (item.value / total) * 100;
-                const angle = (item.value / total) * 2 * Math.PI;
-                const x1 = Math.cos(currentAngle) * 80;
-                const y1 = Math.sin(currentAngle) * 80;
-                const x2 = Math.cos(currentAngle + angle) * 80;
-                const y2 = Math.sin(currentAngle + angle) * 80;
-                
-                const largeArcFlag = angle > Math.PI ? 1 : 0;
-                const path = `M 0 0 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-                
-                currentAngle += angle;
-                
-                return (
-                  <g key={index}>
-                    <path
-                      d={path}
-                      fill={item.color}
-                      stroke="white"
-                      strokeWidth="2"
-                    />
-                    <text 
-                      x={Math.cos(currentAngle - angle/2) * 120} 
-                      y={Math.sin(currentAngle - angle/2) * 120}
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill="#333"
-                    >
-                      {`${item.label} (${percentage.toFixed(1)}%)`}
-                    </text>
-                  </g>
-                );
-              })}
-              <text y={-140} textAnchor="middle" fontSize="14" fontWeight="bold">
-                Pie Chart
-              </text>
-            </g>
-          </svg>
-        );
-        
-      case 'line':
-        const maxValue = Math.max(...chartData.map(d => d.value));
-        const minValue = Math.min(...chartData.map(d => d.value));
-        const range = maxValue - minValue || 1;
-        
-        return (
-          <svg width="300" height="250" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100%" height="100%" fill="white" />
-            <g transform="translate(40, 20)">
-              {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-                const value = minValue + ratio * range;
-                const y = 160 - (ratio * 160);
-                return (
-                  <g key={`y-label-${i}`}>
-                    <line x1="0" y1={y} x2="240" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x="-10" y={y + 4} textAnchor="end" fontSize="10" fill="#666">
-                      {value.toFixed(2)}
-                    </text>
-                  </g>
-                );
-              })}
-              
-              <polyline
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="3"
-                points={chartData.map((item, index) => {
-                  const x = (index / Math.max(1, chartData.length - 1)) * 240;
-                  const y = 160 - ((item.value - minValue) / range) * 160;
-                  return `${x},${y}`;
-                }).join(' ')}
-              />
-              
-              {chartData.map((item, index) => {
-                const x = (index / Math.max(1, chartData.length - 1)) * 240;
-                const y = 160 - ((item.value - minValue) / range) * 160;
-                return (
-                  <g key={index}>
-                    <circle cx={x} cy={y} r="4" fill="#3b82f6" />
-                    <text 
-                      x={x}
-                      y={y - 10}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="#333"
-                    >
-                      {item.value.toFixed(2)}
-                    </text>
-                  </g>
-                );
-              })}
-              
-              {chartData.map((item, index) => {
-                const x = (index / Math.max(1, chartData.length - 1)) * 240;
-                return (
-                  <text
-                    key={`label-${index}`}
-                    x={x}
-                    y="190"
-                    textAnchor="middle"
-                    fontSize="10"
-                    fill="#333"
-                  >
-                    {item.label}
-                  </text>
-                );
-              })}
-              
-              <text x="120" y="220" textAnchor="middle" fontSize="14" fontWeight="bold">
-                Line Chart
-              </text>
-            </g>
-          </svg>
-        );
-        
-      default:
-        const maxVal = Math.max(...chartData.map(d => d.value));
-        return (
-          <svg width="300" height="250" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100%" height="100%" fill="white" />
-            {chartData.map((item, index) => {
-              const barHeight = Math.max(10, (item.value / maxVal) * 160);
-              const x = index * 30 + 50;
-              const y = 200 - barHeight;
-              
-              return (
-                <g key={index} transform={`translate(${x}, ${y})`}>
-                  <rect 
-                    width="20" 
-                    height={barHeight} 
-                    fill={item.color}
-                    rx="2"
-                  />
-                  <text 
-                    x="10" 
-                    y={barHeight + 15} 
-                    textAnchor="middle" 
-                    fontSize="10"
-                    fill="#333"
-                  >
-                    {item.label}
-                  </text>
-                  <text 
-                    x="10" 
-                    y="-5" 
-                    textAnchor="middle" 
-                    fontSize="10"
-                    fill="#333"
-                  >
-                    {item.value.toFixed(2)}
-                  </text>
-                </g>
-              );
-            })}
-            <text x="150" y="230" textAnchor="middle" fontSize="14" fontWeight="bold">
-              Bar Chart
-            </text>
-          </svg>
-        );
-    }
-  };
-  const handleFileLoad = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result);
-          setCellData(data.cellData || {});
-          setCellStyles(data.cellStyles || {});
-          setSheetName(data.sheetName || 'Untitled spreadsheet');
-          showNotification('Spreadsheet loaded');
-        } catch (error) {
-          showNotification('Error loading file');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-  const handleSort = () => {
-    const columnData = [];
-    for (let row = 0; row < rows; row++) {
-      const value = getCellValue(row, sortDialog.column);
-      if (value) {
-        columnData.push({ row, value, originalRow: row });
-      }
-    }
-
-    columnData.sort((a, b) => {
-      const aVal = isNaN(a.value) ? a.value : parseFloat(a.value);
-      const bVal = isNaN(b.value) ? b.value : parseFloat(b.value);
-      
-      if (sortDialog.ascending) {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
-      }
-    });
-
-    const newData = { ...cellData };
-    const newStyles = { ...cellStyles };
-    
-    columnData.forEach((item, index) => {
-      for (let col = 0; col < cols; col++) {
-        const oldKey = getCellKey(item.originalRow, col);
-        const newKey = getCellKey(index, col);
-        newData[newKey] = cellData[oldKey] || '';
-        newStyles[newKey] = cellStyles[oldKey] || {};
-      }
-    });
-
-    setCellData(newData);
-    setCellStyles(newStyles);
-    addToHistory(newData, newStyles);
-    setSortDialog({ show: false, column: 0, ascending: true });
-    showNotification('Data sorted');
-  };
-  const handleNew = () => {
-    setCellData({});
-    setCellStyles({});
-    setHistory([{}]);
-    setHistoryIndex(0);
-    setSheetName('Untitled spreadsheet');
-    showNotification('New spreadsheet created');
-  };
-  const handleOpen = () => {
-    fileInputRef.current?.click();
-  };
-  const handleSave = () => {
-    const data = { cellData, cellStyles, sheetName };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${sheetName}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showNotification('Spreadsheet saved');
-  };
-  const handleDownloadCSV = () => {
-    let csv = '';
-    for (let row = 0; row < rows; row++) {
-      const rowData = [];
-      for (let col = 0; col < cols; col++) {
-        rowData.push(getCellValue(row, col));
-      }
-      csv += rowData.join(',') + '\n';
-    }
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${sheetName}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showNotification('CSV downloaded');
-  };
-   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prevState = history[historyIndex - 1];
-      setCellData(prevState.data || {});
-      setCellStyles(prevState.styles || {});
-      setHistoryIndex(historyIndex - 1);
-      showNotification('Undone');
-    }
-  };
-
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      setCellData(nextState.data || {});
-      setCellStyles(nextState.styles || {});
-      setHistoryIndex(historyIndex + 1);
-      showNotification('Redone');
-    }
-  };
-  const handleCut = () => {
-    handleCopy();
-    setCellValue(selectedCell.row, selectedCell.col, '');
-    showNotification('Cut');
-  };
-
-  const handlePaste = () => {
-    if (clipboard) {
-      setCellValue(selectedCell.row, selectedCell.col, clipboard.value);
-      setCellStyle(selectedCell.row, selectedCell.col, clipboard.style);
-      showNotification('Pasted');
-    }
-  };
-
-  const handleDelete = () => {
-    setCellValue(selectedCell.row, selectedCell.col, '');
-    showNotification('Deleted');
-  };
-
-  const handleFindReplace = () => {
-    if (!findReplace.find) return;
-    
-    let replaced = 0;
-    const newData = { ...cellData };
-    
-    Object.keys(newData).forEach(key => {
-      if (newData[key].includes(findReplace.find)) {
-        newData[key] = newData[key].replace(new RegExp(findReplace.find, 'g'), findReplace.replace);
-        replaced++;
-      }
-    });
-    
-    setCellData(newData);
-    addToHistory(newData, cellStyles);
-    showNotification(`Replaced ${replaced} instances`);
-    setFindReplace({ show: false, find: '', replace: '' });
-  };
-  const handleCopy = () => {
-    const value = getCellValue(selectedCell.row, selectedCell.col);
-    const style = getCellStyle(selectedCell.row, selectedCell.col);
-    setClipboard({ value, style, row: selectedCell.row, col: selectedCell.col });
-    showNotification('Copied');
-  };
-  const insertRow = () => {
-    const newData = {};
-    const newStyles = {};
-    
-    Object.keys(cellData).forEach(key => {
-      const [row, col] = key.split('-').map(Number);
-      if (row >= selectedCell.row) {
-        const newKey = getCellKey(row + 1, col);
-        newData[newKey] = cellData[key];
-        newStyles[newKey] = cellStyles[key] || {};
-      } else {
-        newData[key] = cellData[key];
-        newStyles[key] = cellStyles[key] || {};
-      }
-    });
-    
-    setCellData(newData);
-    setCellStyles(newStyles);
-    addToHistory(newData, newStyles);
-    showNotification('Row inserted');
-  };
   
-  const insertColumn = () => {
-    const newData = {};
-    const newStyles = {};
+function handleSpellCheck(setNotification, documentText) {
+  
+  setNotification('Starting spell check...');
+  
+  
+  const dictionary = ['apple', 'banana', 'document', 'check', 'example'];
+  
+ 
+  const words = documentText.split(/\s+/);
+  const errors = [];
+  
+
+  words.forEach((word, index) => {
+    const cleanWord = word.toLowerCase().replace(/[.,!?]/g, '');
+    if (cleanWord.length > 0 && !dictionary.includes(cleanWord)) {
+      errors.push({
+        word,
+        position: index,
+        suggestions: getSuggestions(cleanWord, dictionary)
+      });
+    }
+  });
+  
+  
+  if (errors.length === 0) {
+    setNotification('Spell check complete - no errors found');
+  } else {
+    setNotification(`Found ${errors.length} errors. ${errors.length > 10 ? 'First 10 shown' : ''}`);
+    console.log('Spelling errors:', errors.slice(0, 10));
+    return errors; // Return errors for highlighting
+  }
+}
+
+
+function getSuggestions(word, dictionary) {
+
+  return dictionary.filter(dictWord => 
+    dictWord.startsWith(word[0]) && 
+    Math.abs(dictWord.length - word.length) <= 2
+  ).slice(0, 3);
+}
+
+  function handleSortRange(selectedRange, setCells) {
+  if (!selectedRange) {
+    console.error("No range selected");
+    return;
+  }
+
+  // Get all cells in the selected range
+  const rangeCells = Object.entries(cells).filter(([key]) => {
+    const [row, col] = key.split('-').map(Number);
+    return (
+      row >= selectedRange.startRow &&
+      row <= selectedRange.endRow &&
+      col >= selectedRange.startCol &&
+      col <= selectedRange.endCol
+    );
+  });
+
+  // Sort by the first column in the range
+  const sortColumn = selectedRange.startCol;
+  
+  rangeCells.sort((a, b) => {
+    const [keyA] = a;
+    const [keyB] = b;
+    const [rowA] = keyA.split('-').map(Number);
+    const [rowB] = keyB.split('-').map(Number);
     
-    Object.keys(cellData).forEach(key => {
-      const [row, col] = key.split('-').map(Number);
-      if (col >= selectedCell.col) {
-        const newKey = getCellKey(row, col + 1);
-        newData[newKey] = cellData[key];
-        newStyles[newKey] = cellStyles[key] || {};
-      } else {
-        newData[key] = cellData[key];
-        newStyles[key] = cellStyles[key] || {};
+    const cellA = cells[`${rowA}-${sortColumn}`]?.value;
+    const cellB = cells[`${rowB}-${sortColumn}`]?.value;
+
+    // Numeric comparison
+    if (!isNaN(cellA) && !isNaN(cellB)) {
+      return Number(cellA) - Number(cellB);
+    }
+    
+    // String comparison
+    return String(cellA).localeCompare(String(cellB));
+  });
+
+  // Rebuild the cells object with new order
+  const newCells = {...cells};
+  let newRowIndex = selectedRange.startRow;
+  
+  rangeCells.forEach(([key, cellData]) => {
+    const [oldRow, col] = key.split('-').map(Number);
+    const newKey = `${newRowIndex}-${col}`;
+    
+    if (newKey !== key) {
+      newCells[newKey] = {...cellData};
+      delete newCells[key];
+    }
+    
+    newRowIndex++;
+  });
+
+  setCells(newCells);
+}
+
+  
+
+  const loadFromStorage = () => {
+  try {
+    const savedData = localStorage.getItem('spreadsheetData');
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      setCells(data.cells || {});
+      setSheetName(data.sheetName || 'Untitled spreadsheet');
+      setHistory(data.history || [{}]);
+      setHistoryIndex(data.historyIndex || 0);
+      showNotification('Spreadsheet loaded from storage');
+    }
+  } catch (error) {
+    console.error('Load failed:', error);
+    showNotification('Error: Could not load saved data');
+  }
+};
+
+// Call this in useEffect when component mounts
+useEffect(() => {
+  loadFromStorage();
+}, []);
+ const handleSave = async () => {
+  try {
+    // Convert cells data to CSV format
+    const csvData = convertToCSV(cells);
+
+    // Check if File System Access API is available (Chrome/Edge)
+    if ('showSaveFilePicker' in window) {
+      const fileHandle = await window.showSaveFilePicker({
+        suggestedName: `${sheetName}.csv`,
+        types: [{
+          description: 'CSV Files',
+          accept: { 'text/csv': ['.csv'] },
+        }],
+      });
+
+      // Write CSV content to the selected file
+      const writableStream = await fileHandle.createWritable();
+      await writableStream.write(csvData);
+      await writableStream.close();
+
+      showNotification(`Saved as "${fileHandle.name}"`);
+    } else {
+      // Fallback for browsers without File System Access API
+      downloadCSV(csvData, `${sheetName}.csv`);
+      showNotification(`Downloaded "${sheetName}.csv"`);
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      console.error('Save failed:', error);
+      showNotification('Error: Could not save file');
+    }
+  }
+};
+const convertToCSV = (cells) => {
+  const ROWS = 100;
+  const COLS = 26;
+  let csvContent = '';
+
+  // Build header row (A, B, C, ...)
+  const headers = Array.from({ length: COLS }, (_, i) => 
+    String.fromCharCode(65 + i)
+  );
+  csvContent += headers.join(',') + '\n';
+
+  // Build data rows
+  for (let row = 1; row <= ROWS; row++) {
+    const rowData = [];
+    for (let col = 0; col < COLS; col++) {
+      const cellRef = `${String.fromCharCode(65 + col)}${row}`;
+      const cellValue = cells[cellRef]?.display || cells[cellRef]?.value || '';
+      // Escape CSV special characters (comma, quotes, newlines)
+      rowData.push(`"${cellValue.toString().replace(/"/g, '""')}"`);
+    }
+    csvContent += rowData.join(',') + '\n';
+  }
+
+  return csvContent;
+};
+
+const downloadCSV = (csvData, filename) => {
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+  const [findReplace, setFindReplace] = useState({
+  show: false,
+  find: '',
+  replace: '',
+  matchCase: false,
+  results: [],
+  currentIndex: -1
+});
+
+ const handleFindReplace = (action = 'find') => {
+  if (!findReplace.find.trim()) {
+    showNotification('Please enter text to find');
+    return;
+  }
+
+  try {
+    const flags = findReplace.matchCase ? 'g' : 'gi';
+    const pattern = new RegExp(escapeRegExp(findReplace.find), flags);
+    const results = [];
+    let replaceCount = 0;
+
+    // First pass: Find all matches and collect results
+    {Object.entries(cells).map(([cellId, cell]) => (
+  <div key={cellId} className="border p-2 w-20 h-20 flex items-center justify-center">
+    {cell.type === 'image' ? (
+      <img src={cell.value} alt="Cell" className="max-w-full max-h-full object-contain" />
+    ) : (
+      cell.value
+    )}
+  </div>
+))}
+
+
+    // Second pass: Perform replacement if needed
+    if (action === 'replace' && results.length > 0) {
+      const newCells = { ...cells };
+      
+      results.forEach(cellRef => {
+        const cell = newCells[cellRef];
+        const newValue = cell.value.replace(pattern, findReplace.replace);
+        
+        newCells[cellRef] = {
+          ...cell,
+          value: newValue,
+          display: newValue.startsWith('=') ? evaluateFormula(newValue, cellRef) : newValue
+        };
+        replaceCount++;
+      });
+
+      setCells(newCells);
+      saveToHistory(newCells); // Make sure to update history
+    }
+
+    // Update state and show results
+    setFindReplace(prev => ({
+      ...prev,
+      results,
+      currentIndex: results.length > 0 ? 0 : -1
+    }));
+
+    // Show appropriate notification
+    const message = action === 'find'
+      ? results.length > 0 
+        ? `Found ${results.length} matches` 
+        : 'No matches found'
+      : replaceCount > 0
+        ? `Replaced ${replaceCount} occurrences`
+        : 'No matches found';
+    
+    showNotification(message);
+
+    // Highlight first match if found
+    if (results.length > 0) {
+      setSelectedCell(results[0]);
+    }
+
+  } catch (error) {
+    console.error('Find/replace error:', error);
+    showNotification('Invalid search pattern');
+  }
+};
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const handleCut = () => {
+  if (!selectedCell || !cells[selectedCell]) {
+    showNotification('No cell selected or cell is empty');
+    return;
+  }
+
+  const cell = cells[selectedCell];
+  setClipboard({
+    value: cell.value,
+    formula: cell.formula,
+    display: cell.display,
+    style: cell.style || {},
+    action: 'cut'
+  });
+
+  // Update the cells state
+  setCells(prev => {
+    const newCells = {...prev};
+    newCells[selectedCell] = {
+      value: '',
+      formula: '',
+      display: '',
+      style: {}
+    };
+    return newCells;
+  });
+
+  showNotification('Content cut to clipboard');
+};
+
+const handleCopy = () => {
+  if (!selectedCell || !cells[selectedCell]) {
+    showNotification('No cell selected or cell is empty');
+    return;
+  }
+
+  const cell = cells[selectedCell];
+  setClipboard({
+    value: cell.value,
+    formula: cell.formula,
+    display: cell.display,
+    style: cell.style || {},
+    action: 'copy'
+  });
+
+  showNotification('Content copied to clipboard');
+};
+
+const handlePaste = () => {
+  if (!selectedCell) {
+    showNotification('No cell selected');
+    return;
+  }
+
+  if (!clipboard || clipboard.value === null) {
+    showNotification('Clipboard is empty');
+    return;
+  }
+
+  setCells(prev => ({
+    ...prev,
+    [selectedCell]: {
+      value: clipboard.value,
+      formula: clipboard.formula,
+      display: clipboard.display,
+      style: {...clipboard.style}
+    }
+  }));
+
+  // If it was a cut operation, clear the clipboard
+  if (clipboard.action === 'cut') {
+    setClipboard({
+      value: null,
+      formula: null,
+      display: null,
+      style: null,
+      action: null
+    });
+  }
+
+  showNotification('Content pasted');
+};
+
+  const insertRow = (position = 'above') => {
+  if (!selectedCell) {
+    showNotification('Please select a cell first');
+    return;
+  }
+
+  // Get the row number from selected cell (e.g., "B5" → 5)
+  const selectedRow = parseInt(selectedCell.match(/\d+$/)[0]);
+  
+  setCells(prevCells => {
+    const newCells = {...prevCells};
+    const newRow = position === 'above' ? selectedRow : selectedRow + 1;
+
+    // Shift all cells below down by 1 row
+    Object.keys(prevCells).forEach(cellKey => {
+      const [col, row] = cellKey.match(/^([A-Z]+)(\d+)$/).slice(1);
+      const rowNum = parseInt(row);
+
+      if (rowNum >= newRow) {
+        // Move cell down by 1 row
+        const newKey = `${col}${rowNum + 1}`;
+        newCells[newKey] = {...prevCells[cellKey]};
+        
+        // Clear original cell if it's being vacated
+        if (rowNum === newRow) {
+          newCells[cellKey] = { value: '', display: '' };
+        }
       }
     });
-    
-    setCellData(newData);
-    setCellStyles(newStyles);
-    addToHistory(newData, newStyles);
-    showNotification('Column inserted');
-  };
-  const toggleBold = () => {
-    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
-    setCellStyle(selectedCell.row, selectedCell.col, { 
-      fontWeight: currentStyle.fontWeight === 'bold' ? 'normal' : 'bold' 
-    });
-  };
-  const toggleItalic = () => {
-    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
-    setCellStyle(selectedCell.row, selectedCell.col, { 
-      fontStyle: currentStyle.fontStyle === 'italic' ? 'normal' : 'italic' 
-    });
-  };
 
-  const toggleUnderline = () => {
-    const currentStyle = getCellStyle(selectedCell.row, selectedCell.col);
-    setCellStyle(selectedCell.row, selectedCell.col, { 
-      textDecoration: currentStyle.textDecoration === 'underline' ? 'none' : 'underline' 
+    return newCells;
+  });
+
+  // Update history
+  saveToHistory(cells);
+  showNotification(`Row inserted ${position}`);
+};
+  
+  const insertColumn = (position = 'left') => {
+  if (!selectedCell) {
+    showNotification('Please select a cell first');
+    return;
+  }
+
+  // Get column letter and index (B5 → "B" → 1)
+  const colLetter = selectedCell.replace(/\d+/g, '');
+  const colIndex = colLetter.charCodeAt(0) - 65; // A=0, B=1, etc.
+  const insertAt = position === 'left' ? colIndex : colIndex + 1;
+
+  setCells(prevCells => {
+    const newCells = {};
+    const colsToShift = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slice(insertAt);
+
+    // 1. Process all existing cells
+    Object.entries(prevCells).forEach(([cellRef, cellData]) => {
+      const [currentCol, row] = cellRef.split(/(\d+)/).filter(Boolean);
+      const currentIndex = currentCol.charCodeAt(0) - 65;
+
+      if (currentIndex >= insertAt) {
+        // Shift right
+        const newCol = String.fromCharCode(65 + currentIndex + 1);
+        newCells[`${newCol}${row}`] = { ...cellData };
+        
+        // Clear original if it's the insertion point
+        if (currentIndex === insertAt) {
+          newCells[cellRef] = { value: '', display: '', formula: '' };
+        }
+      } else {
+        // Copy unchanged
+        newCells[cellRef] = { ...cellData };
+      }
     });
-  };
 
-  const setAlignment = (align) => {
-    setCellStyle(selectedCell.row, selectedCell.col, { textAlign: align });
-  };
+    return newCells;
+  });
 
-  const setColor = (type, color) => {
-    const styleKey = type === 'text' ? 'color' : 'backgroundColor';
-    setCellStyle(selectedCell.row, selectedCell.col, { [styleKey]: color });
-    setColorPicker({ show: false, type: '', color: '#ffffff' });
-  };
+  showNotification(`Column inserted ${position} of ${colLetter}`);
+};
+  
   const toggleFilter = () => {
     setFilterActive(!filterActive);
     showNotification(filterActive ? 'Filter removed' : 'Filter applied');
   };
-  const MenuDropdown = ({ items, isOpen, onClose }) => {
-    if (!isOpen) return null;
-    
-    return (
-      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-48">
-        {items.map((item, index) => (
-          <button
-            key={index}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-            onClick={() => {
-              item.action();
-              onClose();
-            }}
-          >
-            <item.icon size={16} />
-            {item.label}
-          </button>
-        ))}
-      </div>
-    );
-  };
   const handleZoomIn = () => setZoom(Math.min(200, zoom + 25));
   const handleZoomOut = () => setZoom(Math.max(50, zoom - 25));
-  const toggleGridlines = () => setShowGridlines(!showGridlines);
   const toggleFormulas = () => setShowFormulas(!showFormulas);
+const restoreVersion = (index) => {
+  if (index < 0 || index >= history.length) return;
+  
+  const version = history[index];
+  setCells(version.cells || {});
+  setHistoryIndex(index);
+  setShowHistory(false);
+  showNotification(`Restored version ${index + 1}`);
+};
+const [showGridlines, setShowGridlines] = useState(true); // Default to visible
+useEffect(() => {
+  console.log('Current gridlines state:', showGridlines);
+}, [showGridlines]);
+const toggleGridlines = () => {
+  console.log('Before toggle:', showGridlines); // Debug
+  setShowGridlines(!showGridlines);
+  console.log('After toggle:', !showGridlines); // Debug
+};
 
  const menuItems = {
   File: [
     { 
-      icon: FileText, 
-      label: 'New', 
-      action: () => {
-        setCells({});
-        setSheetName('Untitled spreadsheet');
-        setNotification('New spreadsheet created');
-        saveToHistory({});
-      },
-      shortcut: 'Ctrl+N'
-    },
+  icon: FileText, 
+  label: 'New', 
+  action: () => {
+    addSheet(); // Call your addSheet function instead of individual state setters
+    setNotification('New spreadsheet created');
+  },
+  shortcut: 'Ctrl+N'
+},
     { 
       icon: Folder, 
       label: 'Open', 
@@ -1367,22 +1313,30 @@ const handleHeaderDoubleClick = (type, index) => {
       label: 'Download as CSV', 
       action: exportToCSV
     },
-    { 
-      icon: Printer, 
-      label: 'Print', 
-      action: () => window.print(),
-      shortcut: 'Ctrl+P'
+    {
+      icon: Share2,
+      label: 'Share',
+      action: () => {
+        if (navigator.share) {
+          navigator.share({
+            title: sheetName,
+            text: 'Check out this spreadsheet',
+            url: window.location.href
+          }).catch(console.error);
+        } else {
+          setShowShareDropdown(!showShareDropdown);
+        }
+      }
     },
-    { 
-      icon: Share2, 
-      label: 'Share', 
-      action: () => setShowShareDropdown(!showShareDropdown)
-    },
-    { 
-      icon: Clock, 
-      label: 'Version history', 
-      action: () => setNotification('Version history would show here')
-    }
+    {
+  icon: Clock,
+  label: 'Version history',
+  action: () => {
+    setShowHistory(true);
+    showNotification(`Loaded ${history.length} versions`);
+  },
+  shortcut: 'Ctrl+H'
+}
   ],
   Edit: [
     { 
@@ -1400,48 +1354,68 @@ const handleHeaderDoubleClick = (type, index) => {
       disabled: historyIndex === history.length - 1
     },
     { 
-      icon: Scissors, 
-      label: 'Cut', 
-      action: handleCut,
-      shortcut: 'Ctrl+X'
-    },
+    icon: Scissors, 
+    label: 'Cut', 
+    action: handleCut,
+    shortcut: 'Ctrl+X',
+    disabled: !selectedCell || !cells[selectedCell]
+  },
     { 
-      icon: Copy, 
-      label: 'Copy', 
-      action: handleCopy,
-      shortcut: 'Ctrl+C'
-    },
+    icon: Copy, 
+    label: 'Copy', 
+    action: handleCopy,
+    shortcut: 'Ctrl+C',
+    disabled: !selectedCell || !cells[selectedCell]
+  },
     { 
-      icon: Clipboard, 
-      label: 'Paste', 
-      action: handlePaste,
-      shortcut: 'Ctrl+V'
-    },
-    { 
-      icon: Search, 
-      label: 'Find and replace', 
-      action: () => setFindReplace({ ...findReplace, show: true }),
-      shortcut: 'Ctrl+F'
-    },
-    { 
-      icon: Trash2, 
-      label: 'Delete', 
-      action: () => handleCellChange(selectedCell, ''),
-      shortcut: 'Del'
+    icon: Clipboard, 
+    label: 'Paste', 
+    action: handlePaste,
+    shortcut: 'Ctrl+V',
+    disabled: !clipboard || clipboard.value === null
+  },
+   {
+  icon: Search, 
+  label: 'Find and replace', 
+  action: () => setFindReplace({ 
+    show: true,
+    find: '',
+    replace: '',
+    matchCase: false,
+    results: [],
+    currentIndex: -1
+  }),
+  shortcut: 'Ctrl+F'
+},
+    {
+  icon: Trash2, 
+  label: 'Delete', 
+  action: () => {
+    if (selectedCell) {  // Check if a cell is selected
+      handleCut();       // Clear content (or use custom delete logic)
+      setNotification('Cell content deleted');
+    } else {
+      setNotification('No cell selected');
     }
+  },
+  shortcut: 'Delete'  // Prefer 'Delete' over 'Del' for clarity
+}
   ],
   View: [
-    { 
-      icon: Grid3X3, 
-      label: showGridlines ? 'Hide gridlines' : 'Show gridlines', 
-      action: toggleGridlines
-    },
-    { 
-      icon: Eye, 
-      label: showFormulas ? 'Hide formulas' : 'Show formulas', 
-      action: toggleFormulas,
-      shortcut: 'Ctrl+`'
-    },
+    {
+  icon: Grid3X3,
+  label: showGridlines ? 'Hide gridlines' : 'Show gridlines',
+  action: toggleGridlines,
+  className: showGridlines ? 'bg-blue-100' : '' // Visual feedback
+},
+    {
+  icon: Eye,
+  label: showFormulas ? 'Hide formulas' : 'Show formulas',
+  action:()=>{
+    setShowDropdown(!showDropdown)
+  } ,
+  shortcut: 'Ctrl+`'
+},
     { 
       icon: ZoomIn, 
       label: 'Zoom in', 
@@ -1457,98 +1431,185 @@ const handleHeaderDoubleClick = (type, index) => {
     { 
       icon: Maximize, 
       label: 'Full screen', 
-      action: () => document.documentElement.requestFullscreen(),
+      action: () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      },
       shortcut: 'F11'
     }
   ],
   Insert: [
     { 
-      icon: Plus, 
-      label: 'Insert row above', 
-      action: () => insertRow('above'),
-      shortcut: 'Ctrl+Shift++'
-    },
-    { 
-      icon: Plus, 
-      label: 'Insert column left', 
-      action: () => insertColumn('left'),
-      shortcut: 'Ctrl+Shift++'
-    },
-    { 
-      icon: BarChart3, 
-      label: 'Chart', 
-      action: () => setChartDialog({ show: true, type: 'line' })
-    },
-    { 
-      icon: Image, 
-      label: 'Image', 
-      action: () => setNotification('Image upload would be implemented')
-    },
-    { 
-      icon: Link2, 
-      label: 'Link', 
-      action: () => setNotification('Link insertion would be implemented'),
-      shortcut: 'Ctrl+K'
+  icon: Plus, 
+  label: 'Insert row above', 
+  action: () => {
+    if (selectedCell) {
+      insertRow('above');
+    } else {
+      showNotification('Please select a cell first');
     }
+  },
+  shortcut: 'Ctrl+Shift++',
+  disabled: !selectedCell // Disable if no cell selected
+},
+    {
+  icon: Plus,
+  label: 'Insert column left',
+  action: () => {
+    if (selectedCell) {
+      insertColumn('left');
+    } else {
+      showNotification('Please select a cell first', { type: 'error' });
+    }
+  },
+  shortcut: 'Ctrl+Shift+]',
+  disabled: !selectedCell
+},
+    {
+  icon: BarChart3,
+  label: 'Chart',
+  action: handleGenerateChart
+},
+    {
+  icon: Image,
+  label: 'Image',
+  action: async () => {
+    const result = await handleImageUpload(setNotification);
+    if (result) {
+      // Add to your images state
+      setImages(prev => [...prev, result]);
+      
+      // Or insert into your document/editor
+      insertImageIntoEditor(result.url); // Your custom function
+      
+      console.log('Uploaded image:', result);
+    }
+  }
+},
+    {
+  icon: Link2,
+  label: 'Link',
+  action: () => handleLinkInsertion(selectedCell, cells, setCells, setNotification),
+  shortcut: 'Ctrl+K'
+}
   ],
   Format: [
     { 
       icon: Bold, 
       label: 'Bold', 
-      action: () => formatCell({ fontWeight: cells[selectedCell]?.style?.fontWeight === 'bold' ? 'normal' : 'bold' }),
+      action: () => {
+        if (selectedCell) {
+          formatCell({ 
+            fontWeight: cells[selectedCell]?.style?.fontWeight === 'bold' ? 'normal' : 'bold' 
+          });
+        }
+      },
       shortcut: 'Ctrl+B',
-      active: cells[selectedCell]?.style?.fontWeight === 'bold'
+      active: selectedCell && cells[selectedCell]?.style?.fontWeight === 'bold'
     },
     { 
       icon: Italic, 
       label: 'Italic', 
-      action: () => formatCell({ fontStyle: cells[selectedCell]?.style?.fontStyle === 'italic' ? 'normal' : 'italic' }),
+      action: () => {
+        if (selectedCell) {
+          formatCell({ 
+            fontStyle: cells[selectedCell]?.style?.fontStyle === 'italic' ? 'normal' : 'italic' 
+          });
+        }
+      },
       shortcut: 'Ctrl+I',
-      active: cells[selectedCell]?.style?.fontStyle === 'italic'
+      active: selectedCell && cells[selectedCell]?.style?.fontStyle === 'italic'
     },
     { 
       icon: Underline, 
       label: 'Underline', 
-      action: () => formatCell({ textDecoration: cells[selectedCell]?.style?.textDecoration === 'underline' ? 'none' : 'underline' }),
+      action: () => {
+        if (selectedCell) {
+          formatCell({ 
+            textDecoration: cells[selectedCell]?.style?.textDecoration === 'underline' ? 'none' : 'underline' 
+          });
+        }
+      },
       shortcut: 'Ctrl+U',
-      active: cells[selectedCell]?.style?.textDecoration === 'underline'
+      active: selectedCell && cells[selectedCell]?.style?.textDecoration === 'underline'
     },
     { 
       icon: AlignLeft, 
       label: 'Align left', 
-      action: () => formatCell({ textAlign: 'left' }),
-      active: cells[selectedCell]?.style?.textAlign === 'left'
+      action: () => {
+        if (selectedCell) {
+          formatCell({ textAlign: 'left' });
+        }
+      },
+      active: selectedCell && cells[selectedCell]?.style?.textAlign === 'left'
     },
     { 
       icon: AlignCenter, 
       label: 'Align center', 
-      action: () => formatCell({ textAlign: 'center' }),
-      active: cells[selectedCell]?.style?.textAlign === 'center'
+      action: () => {
+        if (selectedCell) {
+          formatCell({ textAlign: 'center' });
+        }
+      },
+      active: selectedCell && cells[selectedCell]?.style?.textAlign === 'center'
     },
     { 
       icon: AlignRight, 
       label: 'Align right', 
-      action: () => formatCell({ textAlign: 'right' }),
-      active: cells[selectedCell]?.style?.textAlign === 'right'
+      action: () => {
+        if (selectedCell) {
+          formatCell({ textAlign: 'right' });
+        }
+      },
+      active: selectedCell && cells[selectedCell]?.style?.textAlign === 'right'
     },
     { 
       icon: Palette, 
       label: 'Fill color', 
-      action: () => setShowColorPicker(!showColorPicker)
+      action: () => {
+        if (selectedCell) {
+          setShowColorPicker({
+            show: true,
+            cell: selectedCell,
+            type: 'background'
+          });
+        }
+      }
     },
-    { 
-      icon: WrapText, 
-      label: 'Wrap text', 
-      action: () => formatCell({ whiteSpace: cells[selectedCell]?.style?.whiteSpace === 'normal' ? 'nowrap' : 'normal' }),
-      active: cells[selectedCell]?.style?.whiteSpace === 'normal'
+    {
+  icon: WrapText,
+  label: 'Wrap text',
+  action: () => {
+    if (selectedCell) {
+      const currentCell = cells[selectedCell];
+      const isCurrentlyWrapped = currentCell?.style?.whiteSpace === 'normal';
+      
+      formatCell({
+        whiteSpace: isCurrentlyWrapped ? 'nowrap' : 'normal'
+      });
+      
+      setNotification(
+        isCurrentlyWrapped 
+          ? 'Text unwrapped' 
+          : 'Text wrapped'
+      );
+    } else {
+      setNotification('Please select a cell first');
     }
+  },
+  active: selectedCell && cells[selectedCell]?.style?.whiteSpace === 'normal',
+  shortcut: 'Ctrl+Shift+W'
+}
   ],
   Data: [
-    { 
-      icon: ArrowUpDown, 
-      label: 'Sort range', 
-      action: () => setSortDialog({ show: true, column: selectedCell?.col || 0, ascending: true })
-    },
+    {
+  icon: ArrowUpDown,
+  label: 'Sort range',
+  action: () => handleSortRange(selectedCell, setSortDialog)
+},
     { 
       icon: Filter, 
       label: filterActive ? 'Remove filter' : 'Create filter', 
@@ -1557,29 +1618,52 @@ const handleHeaderDoubleClick = (type, index) => {
     { 
       icon: Shield, 
       label: 'Data validation', 
-      action: () => setNotification('Data validation would be implemented')
+      action: () => {
+        if (selectedCell) {
+          const rules = prompt('Enter validation rules (e.g., number>0):');
+          if (rules) {
+            setNotification(`Validation rules set for ${selectedCell}`);
+          }
+        }
+      }
     },
     { 
       icon: Table, 
       label: 'Pivot table', 
-      action: () => setNotification('Pivot table would be implemented')
+      action: () => {
+        setNotification('Pivot table would analyze selected data');
+      }
     }
   ],
   Tools: [
-    { 
-      icon: Settings, 
-      label: 'Spell check', 
-      action: () => setNotification('Spell check would run')
-    },
+    {
+  icon: Settings,
+  label: 'Spell check',
+  action: () => {
+    const errors = handleSpellCheck(
+      setNotification, 
+      getDocumentText() // Your function to get current document text
+    );
+    
+    if (errors) {
+      // Highlight errors in your UI
+      highlightSpellingErrors(errors);
+    }
+  }
+},
     { 
       icon: Mail, 
       label: 'Notifications', 
-      action: () => setNotification('Notification settings would open')
+      action: () => {
+        setNotification('Notification settings would open');
+      }
     },
     { 
       icon: Calculator, 
       label: 'Script editor', 
-      action: () => setNotification('Script editor would open'),
+      action: () => {
+        setNotification('Script editor would open');
+      },
       shortcut: 'Alt+Shift+X'
     }
   ],
@@ -1587,12 +1671,16 @@ const handleHeaderDoubleClick = (type, index) => {
     { 
       icon: Puzzle, 
       label: 'Add-ons', 
-      action: () => setNotification('Add-ons store would open')
+      action: () => {
+        setNotification('Add-ons store would open');
+      }
     },
     { 
       icon: Users, 
       label: 'Apps Script', 
-      action: () => setNotification('Apps Script would open')
+      action: () => {
+        setNotification('Apps Script editor would open');
+      }
     }
   ],
   Help: [
@@ -1605,7 +1693,16 @@ const handleHeaderDoubleClick = (type, index) => {
     { 
       icon: Keyboard, 
       label: 'Keyboard shortcuts', 
-      action: () => setNotification('Keyboard shortcuts: Ctrl+C (copy), Ctrl+V (paste), Ctrl+Z (undo)'),
+      action: () => {
+        setNotification(`
+          Common shortcuts:
+          Ctrl+C - Copy
+          Ctrl+V - Paste
+          Ctrl+Z - Undo
+          Ctrl+Y - Redo
+          Ctrl+F - Find
+        `);
+      },
       shortcut: 'Ctrl+/'
     },
     { 
@@ -1615,22 +1712,152 @@ const handleHeaderDoubleClick = (type, index) => {
     }
   ]
 };
-     
+
+function handleLinkInsertion(selectedCell, setCells, setNotification) {
+  if (!selectedCell) {
+    setNotification('Please select a cell first');
+    return;
+  }
+
+  // Get current cell text
+  const currentText = cells[selectedCell]?.value || '';
+
+  // Google Sheets-style dialog
+  const url = prompt('Enter URL (e.g., https://example.com):');
+  if (!url) return; // User cancelled
+
+  // Get display text (defaults to URL if empty)
+  const displayText = prompt('Enter text to display (optional):', currentText) || url;
+
+  // Create Google Sheets-style link
+  setCells(prev => ({
+    ...prev,
+    [selectedCell]: {
+      ...prev[selectedCell],
+      value: displayText,
+      linkUrl: url.startsWith('http') ? url : `https://${url}`,
+      isLink: true,
+      // Special formatting like Google Sheets
+      style: {
+        ...prev[selectedCell]?.style,
+        color: '#1155cc',
+        textDecoration: 'underline',
+        cursor: 'pointer'
+      }
+    }
+  }));
+
+  setNotification('Link created! Click to open.');
+}
+
+function handleImageUpload(setNotification) {
+  return new Promise((resolve) => {
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none'; // Hide the input element
+    
+    // Add to DOM temporarily
+    document.body.appendChild(input);
+    
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      
+      if (!file) {
+        setNotification('No file selected');
+        document.body.removeChild(input);
+        return resolve(null);
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setNotification('Please select an image file (JPEG, PNG, etc.)');
+        document.body.removeChild(input);
+        return resolve(null);
+      }
+      
+      try {
+        // Create preview URL
+        const imageUrl = URL.createObjectURL(file);
+        
+        setNotification(`Image loaded: ${file.name}`);
+        
+        // Return both URL and file data
+        resolve({
+          url: imageUrl,
+          file: file,
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        
+      } catch (error) {
+        console.error('Upload error:', error);
+        setNotification('Failed to load image');
+        resolve(null);
+      } finally {
+        // Clean up
+        document.body.removeChild(input);
+      }
+    };
+    
+    // Trigger file dialog
+    input.click();
+  });
+}
+
+     useEffect(() => {
+  const handleKeyDown = (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    const ctrlKey = e.ctrlKey || e.metaKey; // Support both Ctrl and Cmd
+    
+    if (ctrlKey) {
+      switch (e.key.toLowerCase()) {
+        case 'x':
+          e.preventDefault();
+          handleCut();
+          break;
+        case 'c':
+          e.preventDefault();
+          handleCopy();
+          break;
+        case 'v':
+          e.preventDefault();
+          handlePaste();
+          break;
+      }
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [selectedCell, clipboard, cells]);
+
  
  return (
   <div className="w-full h-screen bg-white flex flex-col font-sans text-gray-800">
     {/* Main App Container */}
     <div className="flex flex-col h-full">
       {/* Top Toolbar */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-1">
-        <div className="flex items-center gap-1">
-{Object.keys(menuItems).map((menuName) => (
-  <div key={menuName} className="relative">
+     <div className="bg-gray-50 border-b border-gray-200 px-4 py-1">
+  <div className="flex items-center gap-1">
+   {Object.keys(menuItems).map((menuName) => (
+  <div key={menuName} className="relative inline-block group">
     <button
-      className={`px-3 py-2 rounded hover:bg-gray-200 ${
+      className={`px-3 py-2 rounded hover:bg-gray-200 transition-colors ${
         activeMenu === menuName ? 'bg-gray-200' : ''
       }`}
-      onClick={(e) => handleMenuClick(menuName, e)}
+      onClick={(e) => {
+        e.stopPropagation();
+        setActiveMenu(activeMenu === menuName ? null : menuName);
+      }}
+      onMouseEnter={() => {
+        if (window.innerWidth > 768) {
+          setActiveMenu(menuName);
+        }
+      }}
     >
       {menuName}
     </button>
@@ -1638,28 +1865,51 @@ const handleHeaderDoubleClick = (type, index) => {
     {activeMenu === menuName && (
       <div
         ref={menuRef}
-        className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-48"
-        style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+        className="absolute left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-48 py-1"
+        onMouseLeave={() => {
+          if (window.innerWidth > 768) {
+            setActiveMenu(null);
+          }
+        }}
       >
         {menuItems[menuName].map((item, index) => (
           <button
             key={index}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+            className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${
+              item.disabled 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'text-gray-700 hover:bg-gray-100'
+            } ${
+              item.active ? 'bg-blue-50 text-blue-700' : ''
+            }`}
             onClick={() => {
-              item.action();
-              setActiveMenu(null);
+              if (!item.disabled) {
+                item.action();
+                setActiveMenu(null);
+              }
             }}
+            disabled={item.disabled}
           >
-            <item.icon size={16} />
-            {item.label}
+            <item.icon 
+              size={16} 
+              className={`flex-shrink-0 ${
+                item.active ? 'text-blue-600' : 'text-gray-500'
+              }`} 
+            />
+            <span className="flex-grow">{item.label}</span>
+            {item.shortcut && (
+              <span className="text-xs text-gray-400 ml-2">
+                {item.shortcut}
+              </span>
+            )}
           </button>
         ))}
       </div>
     )}
   </div>
 ))}
-        </div>
-      </div>
+  </div>
+</div>
 
       {/* Formatting Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-1 flex-wrap">
@@ -1964,9 +2214,10 @@ const handleHeaderDoubleClick = (type, index) => {
                     return (
                       <td
                         key={colIndex}
-                        className={`border ${showGridlines ? 'border-gray-200' : 'border-transparent'} p-0 ${
-                          isSelected ? 'ring-1 ring-blue-500' : ''
-                        }`}
+                        className={`
+  p-0
+  ${showGridlines ? 'border border-gray-200' : 'border-none'}
+  ${selectedCell === cellRef ? 'ring-1 ring-blue-500' : ''}`}
                         style={{
                           ...cell.style,
                           height: getRowHeight(rowIndex),
@@ -2038,19 +2289,158 @@ const handleHeaderDoubleClick = (type, index) => {
         </div>
       </div>
     </div>
+{/* Find/Replace Dialog */}
+{findReplace.show && (
+  <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-xl z-50 w-96">
+    <div className="flex justify-between items-center mb-4">
+      <h3 className="text-lg font-medium">Find and Replace</h3>
+      <button 
+        onClick={() => setFindReplace(prev => ({...prev, show: false}))}
+        className="text-gray-500 hover:text-gray-700"
+      >
+        <X size={20} />
+      </button>
+    </div>
+    
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Find</label>
+        <input
+          type="text"
+          value={findReplace.find}
+          onChange={(e) => setFindReplace(prev => ({...prev, find: e.target.value}))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          autoFocus
+        />
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Replace with</label>
+        <input
+          type="text"
+          value={findReplace.replace}
+          onChange={(e) => setFindReplace(prev => ({...prev, replace: e.target.value}))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+        />
+      </div>
+      
+      <label className="flex items-center">
+        <input
+          type="checkbox"
+          checked={findReplace.matchCase}
+          onChange={(e) => setFindReplace(prev => ({...prev, matchCase: e.target.checked}))}
+          className="h-4 w-4 text-blue-600 rounded"
+        />
+        <span className="ml-2 text-sm text-gray-700">Match case</span>
+      </label>
+      
+      <div className="flex justify-between pt-2">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => handleFindReplace('find')}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
+          >
+            Find
+          </button>
+          <button
+  onClick={() => {
+    if (findReplace.results.length === 0) {
+      // If no results, run find first
+      handleFindReplace('find');
+    } else {
+      // If we have results, perform replace
+      handleFindReplace('replace');
+    }
+  }}
+  className={`px-4 py-2 rounded-md text-sm ${
+    findReplace.results.length === 0
+      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+      : 'bg-blue-100 hover:bg-blue-200 text-blue-800'
+  }`}
+  disabled={findReplace.results.length === 0}
+>
+  Replace All
+</button>
+        </div>
+        
+        {findReplace.results.length > 0 && (
+          <div className="text-sm text-gray-500">
+            {findReplace.currentIndex + 1} of {findReplace.results.length}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+{showHistory && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div className="p-4 border-b flex justify-between items-center">
+        <h3 className="text-lg font-medium">Version History ({history.length})</h3>
+        <button 
+          onClick={() => setShowHistory(false)}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      
+      <div className="overflow-y-auto flex-1">
+        {history.map((version, index) => (
+          <div 
+            key={index}
+            className={`p-3 border-b hover:bg-gray-50 cursor-pointer ${
+              historyIndex === index ? 'bg-blue-50' : ''
+            }`}
+            onClick={() => restoreVersion(index)}
+          >
+            <div className="flex justify-between">
+              <span className="font-medium">
+                Version {index + 1} - {new Date(version.timestamp || Date.now()).toLocaleString()}
+              </span>
+              {historyIndex === index && (
+                <span className="text-sm text-green-600">Current</span>
+              )}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              {Object.keys(version.cells || {}).length} cells modified
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="p-3 border-t bg-gray-50 text-right">
+        <button
+          onClick={() => setShowHistory(false)}
+          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
     {/* Notification */}
     {notification && (
-      <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm animate-fade-in">
-        {notification}
-      </div>
-    )}
+  <div className="fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm animate-fade-in z-50">
+    <div className="flex items-center justify-between gap-4">
+      <span>{notification}</span>
+      <button 
+        onClick={() => setNotification(null)}
+        className="text-gray-300 hover:text-white"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  </div>
+)}
 
     {/* Hidden file input for opening files */}
     <input 
       type="file" 
       ref={fileInputRef} 
-      onChange={handleFileLoad} 
+      onChange={importCSV} 
       className="hidden" 
       accept=".json,.csv"
     />
