@@ -1,21 +1,18 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  Palette, Grid3X3, Calculator, ChevronDown, 
-  Printer, Undo, Redo, Copy, Clipboard, Save, Download,
-  Filter, BarChart, Share, MessageSquare, Clock, Plus,
-  FileText, PieChart, LineChart, AreaChart, X, Search,
-  SortAsc, SortDesc, Eye, EyeOff, Trash2, HelpCircle,
-  TrendingUp, Activity, DollarSign, Menu
+  Palette, Calculator, ChevronDown, 
+  Undo, Redo, Copy, Clipboard,
+  BarChart, Share, Plus,
+  X,  Trash2, HelpCircle,
 } from 'lucide-react';
 import { 
   LineChart as RechartsLineChart, 
   BarChart as RechartsBarChart, 
   PieChart as RechartsPieChart, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  Line, Bar, Cell, Area, AreaChart as RechartsAreaChart, 
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, 
-  ScatterChart, Scatter, ComposedChart
+  Line, Bar, Cell,  AreaChart as RechartsAreaChart, 
+ 
 } from 'recharts';
 
 const GoogleSheetsClone = () => {
@@ -57,11 +54,6 @@ const GoogleSheetsClone = () => {
   const [showChartModal, setShowChartModal] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [chartType, setChartType] = useState('line');
-  const [filteredRows, setFilteredRows] = useState(new Set());
-  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterColumn, setFilterColumn] = useState('A');
-  const [filterValue, setFilterValue] = useState('');
   const [showFormulaHelper, setShowFormulaHelper] = useState(false);
   const [formulaSearch, setFormulaSearch] = useState('');
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);

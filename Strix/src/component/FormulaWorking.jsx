@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Calculator, Code, FileSpreadsheet, Play,MoreVertical } from 'lucide-react';
+import { Play} from 'lucide-react';
 
 // Main Google Sheets Formula Library Class
 class GoogleSheetsFormulas {

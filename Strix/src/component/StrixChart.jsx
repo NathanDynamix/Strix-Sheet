@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo ,useRef} from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, 
   ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, 
-  ReferenceLine, FunnelChart, Funnel, LabelList, Treemap, RadialBarChart, 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, FunnelChart, Funnel, LabelList, Treemap, RadialBarChart, 
   RadialBar
 } from 'recharts';
 import { Sankey } from 'recharts';
@@ -17,15 +15,14 @@ import { useSpreadsheetData } from '../context/SpreadsheetDataContext';
 import { 
   Upload, FileText, Download, Settings, Eye, BarChart2, LineChart as LineChartIcon, 
   PieChart as PieChartIcon, ScatterChart as ScatterChartIcon, AreaChart as AreaChartIcon,
-  Gauge as GaugeIcon, Target, Calendar, DollarSign, Users, Award, Zap, AlertTriangle,
-  CheckCircle, Clock, Star, Layers, ChevronsUp, ChevronsDown, TrendingUp, TrendingDown,
-  Activity, Map, Grid, Table, Database, Sliders, Filter, Plus, Minus, RefreshCw
+  Gauge as GaugeIcon, Target, DollarSign,  Award, AlertTriangle,
+  CheckCircle,  Layers, ChevronsUp, ChevronsDown, TrendingUp, TrendingDown,
+  Activity,  Grid, Table, Database, Sliders, Filter
 } from 'lucide-react';
 
 
 const ChartLibrary = () => {
   const [data, setData] = useState([]);
-  const [selectedColumns, setSelectedColumns] = useState([]);
   
   const [localData, setLocalData] = useState([]);
 

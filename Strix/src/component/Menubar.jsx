@@ -1,17 +1,16 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef} from 'react';
 import { 
   FileText, Save, Download, Printer, Share2, Folder, Clock,
   Undo2, Redo2, Scissors, Copy, Clipboard, Search, Trash2,
-  Eye, EyeOff, Grid3X3, ZoomIn, ZoomOut, Maximize,
+  Eye, Grid3X3, ZoomIn, ZoomOut, Maximize,
   Plus, BarChart3, Image, Link, Table,
   Palette, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  Filter, ArrowUpDown, Shield, Database, Settings,
-  Puzzle, HelpCircle, Keyboard, BookOpen, X, Check, ChevronDown
+  Filter, ArrowUpDown, Shield, Settings,
+  Puzzle, HelpCircle, Keyboard, BookOpen,
 } from 'lucide-react';
 
 const GoogleSheetsClone = () => {
   const [selectedCell, setSelectedCell] = useState({ row: 0, col: 0 });
-  const [selectedRange, setSelectedRange] = useState({ start: null, end: null });
   const [cellData, setCellData] = useState({});
   const [cellStyles, setCellStyles] = useState({});
   const [activeMenu, setActiveMenu] = useState(null);

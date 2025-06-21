@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Download, Upload, Share2, BarChart3, Calculator, Grid, Save, Plus, Trash2,
+  Download, Upload, Share2, BarChart3, Calculator, Grid, Save, Plus, 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, PieChart,
-  LineChart, TrendingUp, FunctionSquare, X, Search, DollarSign, Percent,Palette, Calendar,ChevronDown
+  LineChart,  FunctionSquare, X, Search, DollarSign, Percent,Palette, Calendar,ChevronDown
 } from 'lucide-react';
 
 

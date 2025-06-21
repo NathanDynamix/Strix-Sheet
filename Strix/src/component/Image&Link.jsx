@@ -3,7 +3,7 @@ import {
   Upload, Link, X, Eye, Image, Plus, Undo, Redo, 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   Palette, Grid3x3, MoreHorizontal, FileText, Share,
-  Star, Download, Printer, ChevronDown, ExternalLink, Loader2
+  Star,Printer, ExternalLink,
 } from 'lucide-react';
 
 const StrixSpreadsheet = () => {
