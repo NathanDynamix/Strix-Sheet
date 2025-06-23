@@ -38,6 +38,11 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kbs" }));
 app.use(express.static("public"));
 
+// import routes
+import spreadsheetRouter from "./routers/spreadsheet.router.js";
+
+// routes declaration
+app.use("/api/v1/spreadsheets", spreadsheetRouter);
 
 const activeUsers = new Map();
 
