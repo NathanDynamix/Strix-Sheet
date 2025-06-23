@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   Palette, Calculator, ChevronDown, 
@@ -14,6 +14,7 @@ import {
   Line, Bar, Cell,  AreaChart as RechartsAreaChart, 
  
 } from 'recharts';
+import { getSpreadsheets, getSpreadsheetById, createSpreadsheet, updateSpreadsheet } from '../api/spreadsheet';
 
 const GoogleSheetsClone = () => {
   // Initialize spreadsheet data for 1000 cells (40 columns x 1000 rows)
@@ -58,10 +59,75 @@ const GoogleSheetsClone = () => {
   const [formulaSearch, setFormulaSearch] = useState('');
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
+  const [backendSheets, setBackendSheets] = useState([]);
+  const [selectedBackendSheetId, setSelectedBackendSheetId] = useState('');
+  const [isLoadingBackend, setIsLoadingBackend] = useState(false);
+  const [backendMessage, setBackendMessage] = useState('');
 
   const cellInputRef = useRef(null);
   const activeSheet = sheets.find(sheet => sheet.id === activeSheetId);
   const data = activeSheet ? activeSheet.data : {};
+
+  // Load spreadsheets from backend on mount
+  useEffect(() => {
+    async function fetchSheets() {
+      setIsLoadingBackend(true);
+      try {
+        const sheets = await getSpreadsheets();
+        setBackendSheets(sheets);
+      } catch (err) {
+        setBackendMessage('Failed to load backend spreadsheets');
+      } finally {
+        setIsLoadingBackend(false);
+      }
+    }
+    fetchSheets();
+  }, []);
+
+  // Handler to load a spreadsheet from backend
+  const handleLoadFromBackend = async () => {
+    if (!selectedBackendSheetId) return;
+    setIsLoadingBackend(true);
+    try {
+      const sheet = await getSpreadsheetById(selectedBackendSheetId);
+      // Replace current sheet with loaded data
+      setSheets([{ id: sheet._id, name: sheet.name, data: sheet.data }]);
+      setActiveSheetId(sheet._id);
+      setBackendMessage('Spreadsheet loaded from backend');
+    } catch (err) {
+      setBackendMessage('Failed to load spreadsheet');
+    } finally {
+      setIsLoadingBackend(false);
+    }
+  };
+
+  // Handler to save current sheet to backend
+  const handleSaveToBackend = async () => {
+    const currentSheet = sheets.find(s => s.id === activeSheetId);
+    if (!currentSheet) return;
+    setIsLoadingBackend(true);
+    try {
+      let result;
+      if (currentSheet.id && currentSheet.id.length === 24) {
+        // Looks like a MongoDB ObjectId, update
+        result = await updateSpreadsheet(currentSheet.id, { name: currentSheet.name, data: currentSheet.data });
+        setBackendMessage('Spreadsheet updated in backend');
+      } else {
+        // Create new
+        result = await createSpreadsheet({ name: currentSheet.name, data: currentSheet.data });
+        setSheets([{ id: result._id, name: result.name, data: result.data }]);
+        setActiveSheetId(result._id);
+        setBackendMessage('Spreadsheet saved to backend');
+      }
+      // Refresh backend sheets list
+      const sheets = await getSpreadsheets();
+      setBackendSheets(sheets);
+    } catch (err) {
+      setBackendMessage('Failed to save spreadsheet');
+    } finally {
+      setIsLoadingBackend(false);
+    }
+  };
 
   // Enhanced spreadsheet functions with comprehensive banking formulas
   const functions = {
@@ -673,6 +739,37 @@ const GoogleSheetsClone = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white">
+      {/* Backend Integration Controls */}
+      <div className="bg-gray-100 border-b px-4 py-2 flex items-center gap-4">
+        <div>
+          <select
+            value={selectedBackendSheetId}
+            onChange={e => setSelectedBackendSheetId(e.target.value)}
+            className="border rounded px-2 py-1"
+          >
+            <option value="">Select backend spreadsheet</option>
+            {backendSheets.map(sheet => (
+              <option key={sheet._id} value={sheet._id}>{sheet.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleLoadFromBackend}
+            className="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+            disabled={isLoadingBackend || !selectedBackendSheetId}
+          >
+            Load from Backend
+          </button>
+        </div>
+        <button
+          onClick={handleSaveToBackend}
+          className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+          disabled={isLoadingBackend}
+        >
+          Save to Backend
+        </button>
+        {isLoadingBackend && <span className="ml-2 text-gray-500">Loading...</span>}
+        {backendMessage && <span className="ml-2 text-sm text-blue-700">{backendMessage}</span>}
+      </div>
       {/* Header */}
       <div className="bg-gray-50 border-b px-4 py-2">
         <div className="flex items-center justify-between">

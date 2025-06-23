@@ -3,19 +3,16 @@ import { DATABASE_NAME } from "../constant.js";
 
 const connectDB = async () => {
   try {
-    const connectionPart = await mongoose.connect(
-      `mongodb+srv://aakashRao:YADAVboy321$@cluster0.3igcn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+    const connectionInstance = await mongoose.connect(
+      `mongodb+srv://ay614838:YADAVboy321$@cluster0.gh2alov.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
     );
-    const result = await mongoose.connection.db
-      .collection("users")
-      .updateMany({ phone: "" }, { $set: { phone: null } });
-    // console.log(`Updated ${result.modifiedCount} documents`);
     console.log(
-      `Successfully Connected DB 😁 DB HOST ${connectionPart.connection.host}`
+      `\n MongoDB connected !! DB HOST: ${connectionInstance.connection.host}`
     );
   } catch (error) {
-    console.error("This Error Occur in DB Connection", error);
+    console.log("MONGODB connection FAILED ", error);
     process.exit(1);
   }
 };
+
 export default connectDB;
