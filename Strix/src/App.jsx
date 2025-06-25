@@ -10,6 +10,7 @@ import Test5 from './component/PowerBIDashboard';
 import Test6 from './component/StrixChart';
 import Menu from './component/Menubar';
 import Test7 from './component/Image&Link';
+import Sort from './component/Sorting'
 
 
 
@@ -29,6 +30,7 @@ const App = () => {
         <Route path="/test5" element={<Test5/>}/>
         <Route path="/test6" element={<Test6/>}/>
         <Route path="/test7" element={<Test7/>}/>
+        <Route path="/sort" element={<Sort/>}/>
       </Routes>
       </div>
       <Toaster richColors position="top-center" />
