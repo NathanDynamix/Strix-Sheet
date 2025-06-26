@@ -1,4 +1,5 @@
 import  { useState, useEffect, useCallback,useRef } from 'react';
+import { evaluate, parse } from 'mathjs';
 import {
 Download, Upload, Share2, BarChart3, Calculator, Save, Plus, Trash2,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, FunctionSquare, X, Search, DollarSign, Percent, Palette, 
@@ -99,19 +100,7 @@ const [selectedCell, setSelectedCell] = useState({ row: 0, col: 0 });
 const getColumnName = (colIndex) => {
     return String.fromCharCode(65 + colIndex);
   };
-  const [validationDialog, setValidationDialog] = useState({
-  show: false,
-  cell: null,
-  type: 'number', // 'number', 'text', 'date', 'list', 'custom'
-  condition: 'between', // 'between', 'greater', 'less', 'equal', 'notEqual'
-  min: '',
-  max: '',
-  list: '',
-  customFormula: '',
-  inputMessage: '',
-  errorMessage: 'Invalid input',
-  errorStyle: 'stop' // 'stop', 'warning', 'info'
-});
+ 
 const handleChange = (key, value) => {
   const updatedCells = {
     ...cells,
@@ -122,11 +111,6 @@ const handleChange = (key, value) => {
   };
   updateCellsAndStyles(updatedCells, cellStyles); // Save value + keep styles
 };
-
-
-
-
-
   const getSelectedValue = () => {
     return selectedCell ? cells[selectedCell] || '' : '';
   };
@@ -152,12 +136,42 @@ const [hoveredItem, setHoveredItem] = useState(null);
 const [future, setFuture] = useState([]);
   const [sheetName, setSheetName] = useState('Untitled spreadsheet');
   const [images, setImages] = useState([]);
-  const [filterActive, setFilterActive] = useState(false);
   const [chartDialog, setChartDialog] = useState({ show: false, type: 'line' });
   const [chartData, setChartData] = useState([]);
   const [zoom, setZoom] = useState(100);
   const [showFormulas, setShowFormulas] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [cellValidationRules, setCellValidationRules] = useState({});
+const [validationDialog, setValidationDialog] = useState({
+  show: false,
+  cell: null,
+  type: 'number',
+  condition: 'between',
+  min: '',
+  max: '',
+  list: '',
+  customFormula: '',
+  inputMessage: '',
+  errorMessage: 'Invalid input',
+});
+
+const [scriptEditor, setScriptEditor] = useState({
+  isOpen: false,
+  scripts: [
+    {
+      id: 1,
+      name: "Sample Script",
+      code: `function helloWorld() {
+  const cell = getActiveCell();
+  cell.setValue("Hello World!");
+}`,
+      lastEdited: new Date(),
+    },
+  ],
+  activeScriptId: 1,
+});
+
+
   const [sortDialog, setSortDialog] = useState({
   show: false,
   range: null,
@@ -165,7 +179,9 @@ const [future, setFuture] = useState([]);
   order: 'asc',
   hasHeader: true
 });
-
+const [selectedRange, setSelectedRange] = useState(null);
+const [filterActive, setFilterActive] = useState(false);
+const [filterValues, setFilterValues] = useState({}); // e.g., { A: 'apple' }
   const [cells, setCells] = useState({});
   const [clipboard, setClipboard] = useState(null); // holds copied cell data
 const [cellStyles, setCellStyles] = useState({});
@@ -244,51 +260,10 @@ useEffect(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setActiveMenu(menuName);
   };
-const handleCustomSort = () => {
-  const { range, sortBy, order, hasHeader } = sortDialog;
-  if (!range) return;
 
-  const [startRow, startCol] = range.start;
-  const [endRow, endCol] = range.end;
-  const sortColIndex = sortBy.charCodeAt(0) - 65;
 
-  const rows = [];
-  for (let r = startRow + (hasHeader ? 1 : 0); r <= endRow; r++) {
-    const row = [];
-    for (let c = startCol; c <= endCol; c++) {
-      row.push({
-        key: `${r},${c}`,
-        value: cells[`${r},${c}`] ?? ''
-      });
-    }
-    rows.push(row);
-  }
 
-  rows.sort((a, b) => {
-    const aVal = a[sortColIndex].value;
-    const bVal = b[sortColIndex].value;
-    if (!isNaN(aVal) && !isNaN(bVal)) {
-      return order === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    return order === 'asc'
-      ? aVal.toString().localeCompare(bVal.toString())
-      : bVal.toString().localeCompare(aVal.toString());
-  });
 
-  const updatedCells = { ...cells };
-
-  rows.forEach((row, idx) => {
-    for (let c = 0; c < row.length; c++) {
-      const oldCell = row[c];
-      const newKey = `${startRow + (hasHeader ? 1 : 0) + idx},${startCol + c}`;
-      updatedCells[newKey] = oldCell.value;
-    }
-  });
-
-  setCells(updatedCells);
-  setSortDialog(prev => ({ ...prev, show: false }));
-  showNotification('Range sorted successfully');
-};
 
   const handleMenuLeave = () => {
     timeoutRef.current = setTimeout(() => {
@@ -296,6 +271,81 @@ const handleCustomSort = () => {
       setHoveredItem(null);
     }, 300);
   };
+const handleSortSimple = (order) => {
+  if (!selectedRange) {
+    setNotification('Please select a range using Shift+Click');
+    return;
+  }
+
+  const [startKey, endKey] = selectedRange;
+  const [startRow, startCol] = startKey.split(',').map(Number);
+  const [endRow, endCol] = endKey.split(',').map(Number);
+
+  const top = Math.min(startRow, endRow);
+  const bottom = Math.max(startRow, endRow);
+  const left = Math.min(startCol, endCol);
+  const right = Math.max(startCol, endCol);
+
+  const sortCol = left; // sort by first column in range
+
+  const rows = [];
+  for (let r = top; r <= bottom; r++) {
+    rows.push({
+      originalRow: r,
+      sortValue: cells[`${r},${sortCol}`]?.value?.toString().toLowerCase() || '',
+    });
+  }
+
+  rows.sort((a, b) =>
+    order === 'asc'
+      ? a.sortValue.localeCompare(b.sortValue)
+      : b.sortValue.localeCompare(a.sortValue)
+  );
+
+  const newCells = { ...cells };
+  rows.forEach((row, i) => {
+    const toRow = top + i;
+    for (let c = left; c <= right; c++) {
+      const fromKey = `${row.originalRow},${c}`;
+      const toKey = `${toRow},${c}`;
+      newCells[toKey] = { ...cells[fromKey] };
+    }
+  });
+
+  setCells(newCells);
+  setNotification(`Sorted ${order === 'asc' ? 'A → Z' : 'Z → A'}`);
+};
+const handleFullSort = (order) => {
+  const sortedRows = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    const rowCells = {};
+    for (let c = 0; c < COLS; c++) {
+      const key = `${r},${c}`;
+      rowCells[c] = cells[key] || {};
+    }
+    sortedRows.push({ rowIndex: r, data: rowCells });
+  }
+
+  sortedRows.sort((a, b) => {
+    const valA = a.data[0]?.value?.toString().toLowerCase() || '';
+    const valB = b.data[0]?.value?.toString().toLowerCase() || '';
+    return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+  });
+
+  const newCells = {};
+  sortedRows.forEach((row, newIndex) => {
+    for (let c = 0; c < COLS; c++) {
+      const key = `${newIndex},${c}`;
+      newCells[key] = row.data[c] || {};
+    }
+  });
+
+  setCells(newCells);
+  setNotification(`Sorted all rows by column A (${order === 'asc' ? 'A → Z' : 'Z → A'})`);
+};
+
+
 
   const handleItemEnter = (item) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -355,7 +405,7 @@ const [isHoveringSub, setIsHoveringSub] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [showFunctions, setShowFunctions] = useState(false);
   const [functionSearch, setFunctionSearch] = useState('');
-  const [selectedRange, setSelectedRange] = useState('');
+
   const formulaBtnRef = useRef(null);
   const [showHistory, setShowHistory] = useState(false);
 const [colWidths, setColWidths] = useState({});
@@ -379,22 +429,7 @@ function isWordCorrect(word) {
   return spellCheckDictionary.includes(cleanWord);
 }
 // Add to your state
-const [scriptEditor, setScriptEditor] = useState({
-  isOpen: false,
-  scripts: [
-    {
-      id: 1,
-      name: "Sample Script",
-      code: `function helloWorld() {
-  const cell = getActiveCell();
-  cell.setValue("Hello World!");
-}`,
-      lastEdited: new Date(),
-      isRunning: false
-    }
-  ],
-  activeScriptId: 1
-});
+
 
 
  
@@ -487,6 +522,7 @@ const SortDialog = () => {
     </div>
   );
 };
+
   const getCellStyle = (row, col) => {
     const key = getCellKey(row, col);
     return cellStyles[key] || {};
@@ -725,7 +761,14 @@ const ScriptEditor = ({ scriptEditor, setScriptEditor }) => {
   const handleClose = () => {
     setScriptEditor(prev => ({...prev, isOpen: false}));
   };
+function toggleFilter() {
+  setFilterActive((prev) => !prev);
 
+  // Optionally clear filters when turning off
+  if (filterActive) {
+    setFilters({});
+  }
+}
   const handleRunScript = () => {
     if (!activeScript || activeScript.isRunning) return;
 
@@ -1200,6 +1243,51 @@ const moveToPrevError = () => {
   });
 };
 
+function generatePivotTableAndInsert({ cells, selectedCell, setCells, setNotification }) {
+  const [rowStr, colStr] = selectedCell.split(',');
+  const row = parseInt(rowStr);
+  const col = parseInt(colStr);
+
+  if (col < 2) {
+    setNotification("Select a cell at least in column C");
+    return;
+  }
+
+  const categoryCol = col - 2;
+  const valueCol = col - 1;
+  const pivotData = {};
+
+  for (let r = 0; r < row; r++) {
+    const catKey = `${r},${categoryCol}`;
+    const valKey = `${r},${valueCol}`;
+
+    const category = cells[catKey]?.value?.toString().trim();
+    const rawValue = cells[valKey]?.value;
+    const value = parseFloat(rawValue);
+
+    if (category && !isNaN(value)) {
+      if (!pivotData[category]) pivotData[category] = 0;
+      pivotData[category] += value;
+    }
+  }
+
+  const newCells = { ...cells };
+  newCells[`${row},${col}`] = { value: "Category", display: "Category" };
+  newCells[`${row},${col + 1}`] = { value: "Sum", display: "Sum" };
+
+  let offset = 1;
+  for (const [cat, sum] of Object.entries(pivotData)) {
+    newCells[`${row + offset},${col}`] = { value: cat, display: cat };
+    newCells[`${row + offset},${col + 1}`] = {
+      value: sum.toString(),
+      display: sum.toString(),
+    };
+    offset++;
+  }
+
+  setCells(newCells);
+  setNotification("Pivot table created");
+}
 
 // Helper function to parse cell references
 const parseCellReference = (ref) => {
@@ -1241,40 +1329,31 @@ const parseCellReference = (ref) => {
     setNotification(message);
     setTimeout(() => setNotification(null), 3000);
   };
-const handleImageInsert = () => {
+function handleImageInsert() {
   if (!selectedCell) {
-    showNotification('Please select a cell first');
+    setNotification('Please select a cell first');
     return;
   }
 
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
+  const url = prompt('Enter image URL:');
+  if (url && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)) {
+    const imageHTML = `<img src="${url}" alt="img" style="max-width:100%; max-height:100%;" />`;
 
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    setCells((prev) => ({
+      ...prev,
+      [selectedCell]: {
+        ...prev[selectedCell],
+        display: imageHTML,
+        value: url,
+      },
+    }));
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const imageDataUrl = event.target.result;
+    setNotification('Image inserted');
+  } else {
+    setNotification('Invalid image URL');
+  }
+}
 
-      // Update cell with image tag
-      setCells(prev => ({
-        ...prev,
-        [selectedCell]: {
-          value: '',
-          isImage: true,
-          image: imageDataUrl
-        }
-      }));
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  input.click();
-};
 
 
 const handleFileUpload = (e) => {
@@ -1297,23 +1376,47 @@ const handleUrlChange = (e) => {
     setPreviewImage(null);
   }
 };
+function isImageCell(text) {
+  return typeof text === 'string' && text.includes('<img');
+}
 
-const insertImage = () => {
-  if (selectedCell && previewImage) {
-    setCells(prev => ({
-      ...prev,
-      [selectedCell]: {
-        type: 'image',
-        value: activeImageTab === 'url' ? imageUrl : 'Uploaded Image',
-        src: previewImage,
-        display: '', // Optional: you can add alt text here
-        style: prev[selectedCell]?.style || {} // Preserve existing styles
-      }
-    }));
-    setShowImageDialog(false);
-    showNotification('Image inserted successfully');
+
+function handleImageInsert() {
+  if (!selectedCell) {
+    setNotification('Please select a cell first');
+    return;
   }
-};
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+
+  input.onchange = () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Image = `<img src="${reader.result}" alt="img" style="max-width:100%; max-height:100%;" />`;
+
+      setCells((prev) => ({
+        ...prev,
+        [selectedCell]: {
+          ...prev[selectedCell],
+          display: base64Image,
+          value: reader.result, // Save raw data if needed
+        },
+      }));
+
+      setNotification('Image inserted');
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  input.click(); // Trigger file picker
+}
+
  
   const removeImage = (cellRef) => {
   setCells(prev => ({
@@ -1559,87 +1662,42 @@ const validateCell = (cellRef, value) => {
   return true;
 };
 
-const evaluateFormula = useCallback((formula, cellRef) => {
-  if (!formula.startsWith('=')) return formula;
 
+const evaluateFormula = (formula, cells) => {
   try {
-    let expression = formula.slice(1);
+    if (typeof formula !== 'string' || !formula.startsWith('=')) {
+      return formula; // Return as-is if not a formula
+    }
 
-    // Convert cell references to their values (A1 → 5, B2 → 10, etc.)
-    expression = expression.replace(/([A-Z]+)(\d+)/g, (match, col, row) => {
-      const ref = `${col}${row}`;
-      if (ref === cellRef) return '0'; // Prevent circular references
-      
-      const cell = cells[ref];
-      const value = cell?.display || cell?.value || '0';
-      
-      // Return numeric value if possible, otherwise return 0
-      const numValue = parseFloat(value);
-      return isNaN(numValue) ? '0' : numValue.toString();
-    });
+    // Remove the leading '='
+    const expression = formula.slice(1);
 
-    // Handle SUM function
-    expression = expression.replace(/SUM\(([^)]+)\)/gi, (_, range) => {
-      const [start, end] = range.split(':');
-      if (!start || !end) return '0';
-      
-      const startCoords = cellToCoords(start);
-      const endCoords = cellToCoords(end);
-
-      let sum = 0;
-      for (let r = startCoords.row; r <= endCoords.row; r++) {
-        for (let c = startCoords.col; c <= endCoords.col; c++) {
-          const ref = coordsToCell(r, c);
-          if (ref !== cellRef) {
-            const cell = cells[ref];
-            const value = cell?.display || cell?.value || '0';
-            const num = parseFloat(value);
-            if (!isNaN(num)) sum += num;
-          }
+    // Replace cell references with their values (e.g., A1 with its value)
+    const parsedExpression = expression.replace(
+      /([A-Z]+)([0-9]+)/g, 
+      (match, col, row) => {
+        const cellRef = `${col}${row}`;
+        const cellValue = cells[cellRef]?.value || cells[cellRef] || '';
+        
+        // If the referenced cell has a formula, evaluate it recursively
+        if (typeof cellValue === 'string' && cellValue.startsWith('=')) {
+          return evaluateFormula(cellValue, cells);
         }
+        
+        // Convert to number if possible
+        const numValue = parseFloat(cellValue);
+        return isNaN(numValue) ? `"${cellValue}"` : numValue;
       }
-      return sum.toString();
-    });
+    );
 
-    // Basic math function support
-    const mathFunctions = {
-      AVG: (...args) => args.reduce((a, b) => a + b, 0) / args.length,
-      MAX: Math.max,
-      MIN: Math.min,
-      COUNT: (...args) => args.length,
-      ROUND: Math.round,
-      SQRT: Math.sqrt,
-      POWER: Math.pow
-    };
-
-    // Replace function calls with their results
-    for (const [fnName, fn] of Object.entries(mathFunctions)) {
-      expression = expression.replace(
-        new RegExp(`${fnName}\\(([^)]+)\\)`, 'gi'),
-        (_, args) => {
-          const parsedArgs = args.split(',').map(arg => {
-            const num = parseFloat(arg.trim());
-            return isNaN(num) ? 0 : num;
-          });
-          return fn(...parsedArgs).toString();
-        }
-      );
-    }
-
-    // Evaluate the final expression
-    try {
-      // Use math.js for safer evaluation
-      const result = math.evaluate(expression);
-      return result.toString();
-    } catch (error) {
-      console.error('Formula evaluation error:', error);
-      return '#ERROR!';
-    }
+    // Use math.js to evaluate the parsed expression
+    return math.evaluate(parsedExpression);
   } catch (error) {
-    console.error('Formula parsing error:', error);
-    return '#ERROR!';
+    console.error('Formula error:', error);
+    return '#ERROR';
   }
-}, [cells]);
+};
+
 
 
 const handleCellChange = (cellRef, value) => {
@@ -1716,23 +1774,15 @@ useEffect(() => {
 
 
 
-const formatCell = (styleUpdate) => {
-  if (!selectedCell) return;
-  const updatedStyles = {
-    ...cellStyles,
+function formatCell(styleUpdate) {
+  setCellStyles((prev) => ({
+    ...prev,
     [selectedCell]: {
-      ...(cellStyles[selectedCell] || {}),
-      ...styleUpdate
-    }
-  };
-  updateCellsAndStyles(cells, updatedStyles); // Save style + keep values
-};
-
-
-
-
-
-
+      ...prev[selectedCell],
+      ...styleUpdate,
+    },
+  }));
+}
 
 <button 
   onClick={() => formatCell({ 
@@ -1808,6 +1858,64 @@ const renderCellContent = (cell, cellRef) => {
     a.click();
     URL.revokeObjectURL(url);
   };
+const handleSortSelectedColumn = (order = 'asc') => {
+  if (!selectedCell) {
+    setNotification('Please select a cell first');
+    return;
+  }
+
+  const [, colIndex] = selectedCell.split(',').map(Number);
+
+  // Collect values from the selected column
+  const columnData = Array.from({ length: ROWS }, (_, r) => {
+    const key = `${r},${colIndex}`;
+    return {
+      row: r,
+      key,
+      value: cells[key]?.display ?? ''
+    };
+  });
+
+  // Sort column data
+  columnData.sort((a, b) => {
+    const aVal = a.value?.toString() ?? '';
+    const bVal = b.value?.toString() ?? '';
+
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    const bothNumbers = !isNaN(aNum) && !isNaN(bNum);
+
+    if (bothNumbers) {
+      return order === 'asc' ? aNum - bNum : bNum - aNum;
+    } else {
+      return order === 'asc'
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    }
+  });
+
+  // Apply sorted values back to cells
+  setCells(prev => {
+    const updated = { ...prev };
+    columnData.forEach((cellData, newRowIdx) => {
+      const newKey = `${newRowIdx},${colIndex}`;
+      updated[newKey] = {
+        ...(updated[newKey] || {}),
+        display: cellData.value,
+        value: cellData.value
+      };
+    });
+    return updated;
+  });
+
+  setNotification(
+    `Sorted column ${String.fromCharCode(65 + colIndex)} ${
+      order === 'asc' ? 'A → Z' : 'Z → A'
+    }`
+  );
+};
+
+
 
 const handleHeaderDoubleClick = (type, index) => {
   if (type === 'col') {
@@ -1896,6 +2004,28 @@ const handleHeaderDoubleClick = (type, index) => {
   );
   setActiveSheet(sheetId);
 };
+function validateValue(value, rule) {
+  if (rule.type === 'number') {
+    const num = parseFloat(value);
+    if (isNaN(num)) return false;
+
+    if (rule.condition === 'between') {
+      const min = parseFloat(rule.min);
+      const max = parseFloat(rule.max);
+      return num >= min && num <= max;
+    }
+    if (rule.condition === 'equal') {
+      return num === parseFloat(rule.min);
+    }
+  }
+
+  if (rule.type === 'list') {
+    const options = rule.list.split(',').map(opt => opt.trim());
+    return options.includes(value);
+  }
+
+  return true;
+}
 
 
   const deleteSheet = (sheetId) => {
@@ -1944,62 +2074,40 @@ function handleSpellCheck(setNotification, documentText) {
 
 
 
-  function handleSortRange(selectedRange, setCells) {
-  if (!selectedRange) {
-    console.error("No range selected");
-    return;
+ const handleSort = (range, order = 'asc') => {
+  const [start, end] = range;
+  const [startRow, startCol] = start.split(',').map(Number);
+  const [endRow, endCol] = end.split(',').map(Number);
+
+  const col = startCol; // sort by this column
+  const rows = [];
+
+  for (let r = startRow; r <= endRow; r++) {
+    rows.push({ 
+      key: r, 
+      value: cells[`${r},${col}`]?.value || '' 
+    });
   }
 
-  // Get all cells in the selected range
-  const rangeCells = Object.entries(cells).filter(([key]) => {
-    const [row, col] = key.split('-').map(Number);
-    return (
-      row >= selectedRange.startRow &&
-      row <= selectedRange.endRow &&
-      col >= selectedRange.startCol &&
-      col <= selectedRange.endCol
-    );
+  rows.sort((a, b) => {
+    const valA = a.value.toString().toLowerCase();
+    const valB = b.value.toString().toLowerCase();
+    return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
-  // Sort by the first column in the range
-  const sortColumn = selectedRange.startCol;
-  
-  rangeCells.sort((a, b) => {
-    const [keyA] = a;
-    const [keyB] = b;
-    const [rowA] = keyA.split('-').map(Number);
-    const [rowB] = keyB.split('-').map(Number);
-    
-    const cellA = cells[`${rowA}-${sortColumn}`]?.value;
-    const cellB = cells[`${rowB}-${sortColumn}`]?.value;
-
-    // Numeric comparison
-    if (!isNaN(cellA) && !isNaN(cellB)) {
-      return Number(cellA) - Number(cellB);
+  const newCells = { ...cells };
+  rows.forEach((row, i) => {
+    for (let c = startCol; c <= endCol; c++) {
+      const oldKey = `${row.key},${c}`;
+      const newKey = `${startRow + i},${c}`;
+      newCells[newKey] = { ...cells[oldKey] };
     }
-    
-    // String comparison
-    return String(cellA).localeCompare(String(cellB));
-  });
-
-  // Rebuild the cells object with new order
-  const newCells = {...cells};
-  let newRowIndex = selectedRange.startRow;
-  
-  rangeCells.forEach(([key, cellData]) => {
-    const [oldRow, col] = key.split('-').map(Number);
-    const newKey = `${newRowIndex}-${col}`;
-    
-    if (newKey !== key) {
-      newCells[newKey] = {...cellData};
-      delete newCells[key];
-    }
-    
-    newRowIndex++;
   });
 
   setCells(newCells);
-}
+};
+
+
 
   
 
@@ -2057,6 +2165,15 @@ useEffect(() => {
     }
   }
 };
+const handleSaveValidation = (rule) => {
+  setCellValidationRules(prev => ({
+    ...prev,
+    [rule.cell]: rule
+  }));
+  setValidationDialog({ show: false });
+  setNotification('Validation rule saved');
+};
+
 const convertToCSV = (cells) => {
   const ROWS = 100;
   const COLS = 26;
@@ -2300,26 +2417,38 @@ const handleCut = () => {
     setCells(newCells);
   }
 };
-const getActiveCell = () => {
-  if (!selectedCell) return null;
+function getActiveCell() {
+  const key = `${selectedCell.row},${selectedCell.col}`;
   return {
     setValue: (val) => {
-      setCells(prev => ({ ...prev, [selectedCell]: val }));
+      setCells(prev => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || {}),
+          value: val,
+          display: val
+        }
+      }));
     },
-    getValue: () => cells[selectedCell] || ''
+    getValue: () => cells[key]?.value || '',
+    getRow: () => selectedCell.row,
+    getCol: () => selectedCell.col
   };
-};
+}
 
-const runScript = () => {
+
+
+
+function runScript(code) {
   try {
-    const script = scriptEditor.scripts.find(s => s.id === scriptEditor.activeScriptId);
-    const func = new Function("getActiveCell", script.code);
+    const func = new Function("getActiveCell", code);
     func(getActiveCell);
-    showNotification("Script executed successfully");
+    setNotification("Script executed!");
   } catch (err) {
-    showNotification("Script Error: " + err.message, { type: 'error' });
+    setNotification("Script error: " + err.message);
   }
-};
+}
+
 
 
 
@@ -2448,53 +2577,65 @@ const toggleGridlines = () => {
   setShowGridlines(prev => !prev);
 };
 
-const generatePivotTable = (cells, startPosition) => {
-  const pivotData = {};
-  
-  // Get column letters (assuming data starts from column A)
-  const valueCol = 'B'; // Column with values to sum
-  const categoryCol = 'A'; // Column with categories
-  
-  // Analyze data (assuming data starts from row 2)
-  for (let row = 2; row <= 100; row++) {
-    const categoryCell = `${categoryCol}${row}`;
-    const valueCell = `${valueCol}${row}`;
-    
-    if (cells[categoryCell] && cells[valueCell]) {
-      const category = cells[categoryCell].display || cells[categoryCell].value;
-      const value = parseFloat(cells[valueCell].display || cells[valueCell].value) || 0;
-      
-      if (category) {
-        pivotData[category] = (pivotData[category] || 0) + value;
-      }
-    }
+function generatePivotTable(cells, categoryCol, valueCol, maxRow = 1000) {
+  const pivot = {};
+
+  for (let row = 1; row <= maxRow; row++) {
+    const catKey = `${categoryCol}${row}`;
+    const valKey = `${valueCol}${row}`;
+
+    const category = cells[catKey]?.value;
+    const value = parseFloat(cells[valKey]?.value);
+
+    if (!category || isNaN(value)) continue;
+
+    if (!pivot[category]) pivot[category] = 0;
+    pivot[category] += value;
   }
-  
-  return pivotData;
-};
-const handleLinkInsert = () => {
+
+  return pivot;
+}
+
+
+
+
+function handleLinkInsert() {
   if (!selectedCell) {
-    showNotification("Please select a cell first");
+    setNotification('Please select a cell first');
     return;
   }
 
-  const url = prompt("Enter the URL:");
-  if (!url) return;
+  const url = prompt('Enter URL:', 'https://');
+  if (url && /^https?:\/\/.+/.test(url)) {
+    setCells((prev) => ({
+      ...prev,
+      [selectedCell]: {
+        ...prev[selectedCell],
+        display: url,
+        value: url
+      },
+    }));
+    setNotification('Link inserted');
+  } else {
+    setNotification('Invalid URL');
+  }
+}
+function isLinkCell(text) {
+  return typeof text === 'string' && /^https?:\/\/\S+$/.test(text);
+}
 
-  const text = prompt("Enter the display text:", "Click Here");
-  const link = `<a href="${url}" target="_blank">${text}</a>`;
+function isImageCell(text) {
+  return typeof text === 'string' && text.includes('<img');
+}
 
-  setCells((prev) => ({
-    ...prev,
-    [selectedCell]: {
-      ...(prev[selectedCell] || {}),
-      value: link,
-      display: text, // Display text only
-      isLink: true,
-      url
-    }
-  }));
-};
+function isRichCell(text) {
+  return isImageCell(text) || isLinkCell(text);
+}
+
+
+
+
+
 
 const menuItems = {
   File: [
@@ -2750,29 +2891,25 @@ const menuItems = {
       }
     },
     {
-      icon: WrapText,
-      label: 'Wrap text',
-      action: () => {
-        if (selectedCell) {
-          const currentCell = cells[selectedCell];
-          const isCurrentlyWrapped = currentCell?.style?.whiteSpace === 'normal';
-          
-          formatCell({
-            whiteSpace: isCurrentlyWrapped ? 'nowrap' : 'normal'
-          });
-          
-          setNotification(
-            isCurrentlyWrapped 
-              ? 'Text unwrapped' 
-              : 'Text wrapped'
-          );
-        } else {
-          setNotification('Please select a cell first');
-        }
-      },
-      active: selectedCell && cells[selectedCell]?.style?.whiteSpace === 'normal',
-      shortcut: 'Ctrl+Shift+W'
+  icon: WrapText,
+  label: 'Wrap text',
+  action: () => {
+    if (selectedCell) {
+      const isCurrentlyWrapped = cellStyles[selectedCell]?.whiteSpace === 'normal';
+
+      formatCell({
+        whiteSpace: isCurrentlyWrapped ? 'nowrap' : 'normal',
+      });
+
+      setNotification(isCurrentlyWrapped ? 'Text unwrapped' : 'Text wrapped');
+    } else {
+      setNotification('Please select a cell first');
     }
+  },
+  active: selectedCell && cellStyles[selectedCell]?.whiteSpace === 'normal',
+  shortcut: 'Ctrl+Shift+W',
+}
+
   ],
   Data: [
     {
@@ -2828,62 +2965,83 @@ const menuItems = {
       action: toggleFilter
     },
     {
-      icon: Shield,
-      label: 'Data validation',
-      action: () => {
-        if (!selectedCell) {
-          setNotification('Please select a cell first');
-          return;
-        }
-        setValidationDialog({
-          show: true,
-          cell: selectedCell,
-          type: 'number',
-          condition: 'between',
-          min: '',
-          max: '',
-          list: '',
-          customFormula: '',
-          inputMessage: '',
-          errorMessage: 'Invalid input'
-        });
-      }
-    },
-    {
-      icon: Table,
-      label: 'Pivot table',
-      action: () => {
-        if (!selectedCell) {
-          setNotification('Please select a cell first to define the pivot table location');
-          return;
-        }
-        const col = selectedCell.replace(/\d+/g, '');
-        const row = parseInt(selectedCell.match(/\d+$/)[0]);
-        const pivotTableData = generatePivotTable(cells, { row, col });
-        
-        setCells(prev => {
-          const newCells = {...prev};
-          newCells[`${col}${row}`] = { value: 'Category', display: 'Category' };
-          newCells[`${String.fromCharCode(col.charCodeAt(0) + 1)}${row}`] = { 
-            value: 'Sum', 
-            display: 'Sum' 
-          };
-          
-          Object.entries(pivotTableData).forEach(([category, sum], index) => {
-            const currentRow = row + index + 1;
-            newCells[`${col}${currentRow}`] = { value: category, display: category };
-            newCells[`${String.fromCharCode(col.charCodeAt(0) + 1)}${currentRow}`] = { 
-              value: sum.toString(), 
-              display: sum.toString() 
-            };
-          });
-          
-          return newCells;
-        });
-        
-        setNotification('Pivot table created');
-      }
+  icon: Shield,
+  label: 'Data validation',
+  action: () => {
+    if (!selectedCell) {
+      setNotification('Please select a cell first');
+      return;
     }
+    setValidationDialog({
+      show: true,
+      cell: selectedCell,
+      type: 'number',
+      condition: 'between',
+      min: '',
+      max: '',
+      list: '',
+      customFormula: '',
+      inputMessage: '',
+      errorMessage: 'Invalid input',
+    });
+  }
+}
+,
+    {
+  icon: Table,
+  label: "Pivot table",
+  action: () => {
+  if (!selectedCell) {
+    setNotification("Please select a cell first");
+    return;
+  }
+
+  const [rowStr, colStr] = selectedCell.split(',');
+  const row = parseInt(rowStr);
+  const col = parseInt(colStr);
+
+  if (col < 2) {
+    setNotification("Select a cell at least in column C");
+    return;
+  }
+
+  const categoryCol = col - 2;
+  const valueCol = col - 1;
+  const pivotData = {};
+
+  for (let r = 0; r < row; r++) {
+    const catKey = `${r},${categoryCol}`;
+    const valKey = `${r},${valueCol}`;
+
+    const category = cells[catKey]?.value?.toString().trim();
+    const rawValue = cells[valKey]?.value;
+    const value = parseFloat(rawValue);
+
+    if (category && !isNaN(value)) {
+      if (!pivotData[category]) pivotData[category] = 0;
+      pivotData[category] += value;
+    }
+  }
+
+  const newCells = { ...cells };
+  newCells[`${row},${col}`] = { value: "Category", display: "Category" };
+  newCells[`${row},${col + 1}`] = { value: "Sum", display: "Sum" };
+
+  let offset = 1;
+  for (const [cat, sum] of Object.entries(pivotData)) {
+    newCells[`${row + offset},${col}`] = { value: cat, display: cat };
+    newCells[`${row + offset},${col + 1}`] = {
+      value: sum.toString(),
+      display: sum.toString(),
+    };
+    offset++;
+  }
+
+  setCells(newCells);
+  setNotification("Pivot table created");
+}
+
+}
   ],
   Tools: [
     {
@@ -3229,6 +3387,17 @@ function handleImageUpload(setNotification) {
           >
             <Percent size={18} />
           </button>
+         <button onClick={() => handleSortSelectedColumn('asc')} className="px-2 py-1 bg-blue-500 text-white rounded mr-2">Sort A → Z</button>
+<button onClick={() => handleSortSelectedColumn('desc')} className="px-2 py-1 bg-blue-500 text-white rounded">Sort Z → A</button>
+
+
+
+
+
+
+
+
+
         </div>
 
         {/* Formula Button */}
@@ -3244,74 +3413,98 @@ function handleImageUpload(setNotification) {
           </button>
 
           {showDropdown && (
-  <div
-    ref={dropdownRef}
-    className="absolute left-0 mt-1 flex bg-white border border-gray-200 rounded-md shadow-lg z-50"
-    onMouseLeave={() => {
-      if (!isHoveringSub) setShowDropdown(false);
-    }}
-  >
-    {/* Category list */}
-    <div className="w-48 border-r">
-      {functionCategories.map((cat, idx) => (
         <div
-          key={idx}
-          onClick={() => setSelectedCategory(cat)}
-          onMouseEnter={() => setSelectedCategory(cat)}
-          className={`flex justify-between items-center px-4 py-2 text-sm cursor-pointer ${
-            selectedCategory?.name === cat.name
-              ? 'bg-blue-50 text-blue-700'
-              : 'hover:bg-gray-100'
-          }`}
+          ref={dropdownRef}
+          className="absolute left-0 mt-1 flex bg-white border border-gray-200 rounded-md shadow-lg z-50"
+          onMouseLeave={() => {
+            if (!isHoveringSub) setShowDropdown(false);
+          }}
         >
-          {cat.name}
-          <ChevronDown size={16} className="text-gray-400" />
-        </div>
-      ))}
-    </div>
-
-    {/* Function list */}
-    {selectedCategory && (
-      <div
-        className="w-64 overflow-y-auto max-h-[300px] bg-white"
-        onMouseEnter={() => setIsHoveringSub(true)}
-        onMouseLeave={() => {
-          setIsHoveringSub(false);
-          setSelectedCategory(null);
-        }}
-      >
-        {selectedCategory.functions.map((func, idx) => (
-          <div
-            key={idx}
-            onClick={() => {
-  if (selectedCell) {
-    const formula = `=${func}()`;
-
-    setCells(prev => ({
-      ...prev,
-      [selectedCell]: {
-        ...(typeof prev[selectedCell] === 'object' ? prev[selectedCell] : { value: prev[selectedCell] || '' }),
-        formula,
-        display: formula
-      }
-    }));
-
-    setFormulaBar(formula); // ✅ show in formula bar
-  }
-
-  setShowDropdown(false);
-  setSelectedCategory(null);
-}}
-
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-          >
-            {func}
+          {/* Category list */}
+          <div className="w-48 border-r">
+            {functionCategories.map((cat, idx) => (
+              <div
+                key={idx}
+                onClick={() => setSelectedCategory(cat)}
+                onMouseEnter={() => setSelectedCategory(cat)}
+                className={`flex justify-between items-center px-4 py-2 text-sm cursor-pointer ${
+                  selectedCategory?.name === cat.name
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                {cat.name}
+                <ChevronDown size={16} className="text-gray-400" />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    )}
-  </div>
+
+          {/* Function list */}
+          {selectedCategory && (
+            <div
+              className="w-64 overflow-y-auto max-h-[300px] bg-white"
+              onMouseEnter={() => setIsHoveringSub(true)}
+              onMouseLeave={() => {
+                setIsHoveringSub(false);
+                setSelectedCategory(null);
+              }}
+            >
+              {selectedCategory.functions.map((func, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    if (!selectedCell) {
+                      setShowDropdown(false);
+                      setSelectedCategory(null);
+                      return;
+                    }
+
+                    const formula = `=${func}()`;
+                    const evaluated = evaluateFormula(formula, cells);
+
+                    setCells((prev) => ({
+                      ...prev,
+                      [selectedCell]: {
+                        ...(typeof prev[selectedCell] === 'object'
+                          ? prev[selectedCell]
+                          : { value: prev[selectedCell] || '' }),
+                        formula,
+                        display: evaluated,
+                      },
+                    }));
+
+                    setFormulaBar(formula);
+                    setShowDropdown(false);
+                    setSelectedCategory(null);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  {func}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {filterActive && (
+  <tr>
+    {columnKeys.map((col) => (
+      <td key={col}>
+        <input
+          type="text"
+          placeholder={`Filter ${col}`}
+          value={filterValues[col] || ''}
+          onChange={(e) =>
+            setFilterValues((prev) => ({ ...prev, [col]: e.target.value }))
+          }
+          className="w-full px-1 text-xs border rounded"
+        />
+      </td>
+    ))}
+  </tr>
 )}
+
+
 
         </div>
 
@@ -3324,6 +3517,8 @@ function handleImageUpload(setNotification) {
             <Palette size={18} />
             <ChevronDown size={16} className="text-gray-500" />
           </button>
+         
+
           {showColorPicker && (
             <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 p-3">
               <div className="mb-3">
@@ -3341,7 +3536,9 @@ function handleImageUpload(setNotification) {
                       title={color}
                     />
                   ))}
+                  
                 </div>
+                 
               </div>
               <div className="border-t pt-3">
                 <div className="text-xs font-medium text-gray-500 mb-1">Fill Color</div>
@@ -3426,25 +3623,88 @@ function handleImageUpload(setNotification) {
                     <td
   key={key}
   className={`w-24 h-8 p-0 ${showGridlines ? 'border border-gray-300' : ''}`}
-  onClick={() => setSelectedCell(key)}
->
+  onClick={(e) => {
+  const key = `${r},${c}`;
+  if (e.shiftKey && selectedCell) {
+    setSelectedRange([selectedCell, key]);
+  } else {
+    setSelectedCell(key);
+    setSelectedRange(null);
+  }
+}}
 
-                      <input
-  type="text"
-  value={cells[key]?.display || ""}
-  onChange={(e) => handleChange(key, e.target.value)}
-  className={`w-full h-full px-2 text-sm outline-none
+>
+                      <div
+  contentEditable={!isRichCell(cells[key]?.display)}  
+  suppressContentEditableWarning
+  onInput={(e) => {
+  const value = e.currentTarget.textContent;
+  const rule = cellValidationRules[key];
+
+  if (rule) {
+    const isValid = validateValue(value, rule);
+    if (!isValid) {
+      e.currentTarget.textContent = '';
+      setNotification(rule.errorMessage || 'Invalid input');
+      return;
+    }
+  }
+
+  if (!isRichCell(cells[key]?.display)) {
+    handleChange(key, value);
+  }
+}}
+
+  
+  className={`w-full h-full px-2 text-sm outline-none cursor-pointer
+    flex items-center justify-start overflow-hidden
     ${cellStyles[key]?.bold ? 'font-bold' : ''}
     ${cellStyles[key]?.italic ? 'italic' : ''}
     ${cellStyles[key]?.underline ? 'underline' : ''}
-    ${cellStyles[key]?.align === 'center' ? 'text-center' : ''}
-    ${cellStyles[key]?.align === 'right' ? 'text-right' : ''}
+    ${cellStyles[key]?.align === 'center' ? 'justify-center' : ''}
+    ${cellStyles[key]?.align === 'right' ? 'justify-end' : ''}
+    ${isLinkCell(cells[key]?.display) ? 'text-blue-600 underline' : ''}
   `}
   style={{
+    display: 'flex',
+    alignItems: 'center', // ✅ vertical center
+    justifyContent:
+      cellStyles[key]?.align === 'center'
+        ? 'center'
+        : cellStyles[key]?.align === 'right'
+        ? 'flex-end'
+        : 'flex-start',
     color: cellStyles[key]?.color || 'inherit',
-    backgroundColor: cellStyles[key]?.backgroundColor || 'transparent'
+    backgroundColor: cellStyles[key]?.backgroundColor || 'transparent',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    height: '100%',
+    lineHeight: 'normal',
+    direction: 'ltr',
   }}
+  onClick={(e) => {
+    if (isLinkCell(cells[key]?.display)) {
+      window.open(cells[key]?.display, '_blank');
+      e.preventDefault();
+    }
+  }}
+  ref={(el) => {
+    if (
+      el &&
+      !isRichCell(cells[key]?.display) &&
+      el.textContent !== cells[key]?.display
+    ) {
+      el.textContent = cells[key]?.display || '';
+    }
+  }}
+  dangerouslySetInnerHTML={
+    isRichCell(cells[key]?.display)
+      ? { __html: cells[key]?.display }
+      : undefined
+  }
 />
+
                     </td>
                   );
                 })}
@@ -3799,30 +4059,52 @@ function handleImageUpload(setNotification) {
   </div>
 )}
 {scriptEditor.isOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-    <div className="bg-white p-6 rounded shadow-xl w-[600px]">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold">Script Editor</h2>
-        <button onClick={() => setScriptEditor(prev => ({ ...prev, isOpen: false }))}>✕</button>
-      </div>
+  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="bg-white p-4 rounded shadow-lg w-[600px]">
+      <h2 className="text-lg font-bold mb-2">Script Editor</h2>
       <textarea
-        value={scriptEditor.scripts[0].code}
+        className="w-full h-60 p-2 border rounded font-mono text-sm"
+        value={
+          scriptEditor.scripts.find((s) => s.id === scriptEditor.activeScriptId)
+            ?.code || ''
+        }
         onChange={(e) => {
-          const updated = [...scriptEditor.scripts];
-          updated[0].code = e.target.value;
-          setScriptEditor(prev => ({ ...prev, scripts: updated }));
+          setScriptEditor((prev) => ({
+            ...prev,
+            scripts: prev.scripts.map((script) =>
+              script.id === prev.activeScriptId
+                ? { ...script, code: e.target.value, lastEdited: new Date() }
+                : script
+            ),
+          }));
         }}
-        rows={12}
-        className="w-full font-mono text-sm border rounded p-2"
       />
-      <div className="flex justify-end mt-4">
-        <button onClick={runScript} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          Run Script
+      <div className="flex justify-end gap-2 mt-3">
+        <button
+          className="px-3 py-1 bg-green-600 text-white rounded"
+          onClick={() =>
+            runScript(
+              scriptEditor.scripts.find(
+                (s) => s.id === scriptEditor.activeScriptId
+              )?.code
+            )
+          }
+        >
+          Run
+        </button>
+        <button
+          className="px-3 py-1 bg-gray-300 text-black rounded"
+          onClick={() =>
+            setScriptEditor((prev) => ({ ...prev, isOpen: false }))
+          }
+        >
+          Close
         </button>
       </div>
     </div>
   </div>
 )}
+
 
 {showLinkDialog && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -4354,7 +4636,5 @@ function handleImageUpload(setNotification) {
     <SpellCheckModal />
   </div>
 );
-
-
 };
 
