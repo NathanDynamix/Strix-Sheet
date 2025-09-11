@@ -1,4 +1,4 @@
-import React, { useState, useRef} from 'react';
+import React, { useState, useRef, useMemo} from 'react';
 import { 
   FileText, Save, Download, Printer, Share2, Folder, Clock,
   Undo2, Redo2, Scissors, Copy, Clipboard, Search, Trash2,
@@ -290,6 +290,16 @@ const GoogleSheetsClone = () => {
     showNotification(filterActive ? 'Filter removed' : 'Filter applied');
   };
 
+  // Performance optimization: Memoize expensive calculations
+  const memoizedCellCount = useMemo(() => {
+    return Object.keys(cellData).length;
+  }, [cellData]);
+
+  const memoizedHistoryState = useMemo(() => ({
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1
+  }), [historyIndex, history.length]);
+
   // Insert Operations
   const insertRow = () => {
     const newData = {};
@@ -537,16 +547,16 @@ const GoogleSheetsClone = () => {
           <button 
             onClick={handleUndo}
             className="p-1 rounded hover:bg-gray-200" 
-            disabled={historyIndex <= 0}
+            disabled={!memoizedHistoryState.canUndo}
           >
-            <Undo2 size={16} className={historyIndex <= 0 ? 'text-gray-400' : ''} />
+            <Undo2 size={16} className={!memoizedHistoryState.canUndo ? 'text-gray-400' : ''} />
           </button>
           <button 
             onClick={handleRedo}
             className="p-1 rounded hover:bg-gray-200"
-            disabled={historyIndex >= history.length - 1}
+            disabled={!memoizedHistoryState.canRedo}
           >
-            <Redo2 size={16} className={historyIndex >= history.length - 1 ? 'text-gray-400' : ''} />
+            <Redo2 size={16} className={!memoizedHistoryState.canRedo ? 'text-gray-400' : ''} />
           </button>
           <div className="w-px h-6 bg-gray-300 mx-2"></div>
           <button onClick={toggleBold} className="p-1 rounded hover:bg-gray-200"><Bold size={16} /></button>
@@ -830,7 +840,7 @@ const GoogleSheetsClone = () => {
           <div className="flex items-center gap-4">
             <span>Cell: {getColumnLabel(selectedCell.col)}{selectedCell.row + 1}</span>
             <span>Zoom: {zoom}%</span>
-            <span>Cells: {Object.keys(cellData).length}</span>
+            <span>Cells: {memoizedCellCount}</span>
           </div>
         </div>
       </div>
