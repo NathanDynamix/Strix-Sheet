@@ -70,26 +70,22 @@ const GoogleSheetsClone = () => {
   const [formulaSearch, setFormulaSearch] = useState('');
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
-  const [showLogoutMenu, setShowLogoutMenu] = useState(false);
 
   const cellInputRef = useRef(null);
   const activeSheet = sheets.find(sheet => sheet.id === activeSheetId);
   const data = activeSheet ? activeSheet.data : {};
   
-  // Performance optimizations - only render visible rows
+  // Performance optimizations
   const memoizedCellData = useMemo(() => {
     const result = {};
-    const startRow = Math.floor(scrollTop / 24) + 1;
-    const endRow = Math.min(startRow + visibleRows, 1000);
-    
-    for (let row = startRow; row <= endRow; row++) {
+    for (let row = 1; row <= visibleRows; row++) {
       for (let col = 1; col <= 40; col++) {
         const cellId = getColumnName(col) + row;
         result[cellId] = data[cellId] || { value: '', formula: '', style: {} };
       }
     }
     return result;
-  }, [data, visibleRows, scrollTop]);
+  }, [data, visibleRows]);
 
   // Filter functions
   const applyFilter = useCallback((column, filterValue) => {
@@ -139,22 +135,11 @@ const GoogleSheetsClone = () => {
     setVisibleRows(endRow - startRow);
   }, [visibleRows]);
 
-  // Logout handler
-  const handleLogout = () => {
-    // Clear local storage
-    localStorage.clear();
-    // Redirect to login page
-    window.location.href = '/';
-  };
-
   // Close filter menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterMenuOpen && !event.target.closest('.filter-menu')) {
         setFilterMenuOpen(false);
-      }
-      if (showLogoutMenu && !event.target.closest('.logout-menu')) {
-        setShowLogoutMenu(false);
       }
     };
 
@@ -645,13 +630,7 @@ const GoogleSheetsClone = () => {
     setSelectedCell(cellId);
     const cellData = data[cellId];
     setFormulaBarValue(cellData ? (cellData.formula || cellData.value || '') : '');
-    setIsEditing(true); // Enable editing on single click
-    setTimeout(() => {
-      if (cellInputRef.current) {
-        cellInputRef.current.focus();
-        cellInputRef.current.select();
-      }
-    }, 0);
+    setIsEditing(false);
   };
 
   const handleCellDoubleClick = (cellId) => {
@@ -780,290 +759,79 @@ const GoogleSheetsClone = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Google Sheets Style Header */}
-      <div className="bg-white border-b border-gray-200">
-        {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200">
+      {/* Header */}
+      <div className="bg-gray-50 border-b px-4 py-2">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {/* Google Sheets Icon */}
+            <h1 className="text-xl font-semibold text-gray-800">Spreadsheet Pro</h1>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-                <Grid3X3 className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-lg font-normal text-gray-800">Untitled spreadsheet</h1>
+              <button onClick={undo} className="p-2 hover:bg-gray-200 rounded">
+                <Undo size={16} />
+              </button>
+              <button onClick={redo} className="p-2 hover:bg-gray-200 rounded">
+                <Redo size={16} />
+              </button>
+              <button onClick={copyCell} className="p-2 hover:bg-gray-200 rounded">
+                <Copy size={16} />
+              </button>
+              <button onClick={pasteCell} className="p-2 hover:bg-gray-200 rounded">
+                <Clipboard size={16} />
+              </button>
             </div>
-            
-            {/* Star and Drive icons */}
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-              </button>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              </button>
           </div>
-          
-          {/* Right side icons */}
           <div className="flex items-center space-x-2">
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <Clock className="w-4 h-4 text-gray-600" />
-              </button>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <MessageSquare className="w-4 h-4 text-gray-600" />
+            <button onClick={generateChart} className="p-2 hover:bg-gray-200 rounded">
+              <BarChart size={16} />
             </button>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM14 13h-3v3H9v-3H6v-2h3V8h2v3h3v2z"/>
-              </svg>
+            <button className="p-2 hover:bg-gray-200 rounded">
+              <Share size={16} />
             </button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              <span>Share</span>
-            </button>
-            
-            {/* User Menu/Logout */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowLogoutMenu(!showLogoutMenu)}
-                className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium hover:bg-blue-700"
-                title="User Menu"
-              >
-                U
-              </button>
-              
-              {showLogoutMenu && (
-                <div className="logout-menu absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
-                  <div className="py-1">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <span>Logout</span>
-              </button>
-            </div>
-          </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Google Sheets Style Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2">
-        <div className="flex items-center justify-between">
-          {/* Left side toolbar */}
+      {/* Toolbar */}
+      <div className="bg-white border-b px-4 py-2">
+        <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-1">
-            {/* Undo/Redo */}
-            <button onClick={undo} className="p-2 hover:bg-gray-100 rounded">
-              <Undo size={16} className="text-gray-600" />
-            </button>
-            <button onClick={redo} className="p-2 hover:bg-gray-100 rounded">
-              <Redo size={16} className="text-gray-600" />
-            </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Format Painter */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M18.41 4.16l-1.2 1.2-2.83-2.83 1.2-1.2c.39-.39 1.03-.39 1.42 0l1.41 1.41c.39.39.39 1.03 0 1.42zM5.93 12.93l2.83 2.83L8.54 17c-.39.39-.39 1.03 0 1.42l1.41 1.41c.39.39 1.03.39 1.42 0l1.2-1.2 2.83 2.83-8.24 8.24c-.39.39-1.03.39-1.42 0l-1.41-1.41c-.39-.39-.39-1.03 0-1.42l8.24-8.24zM3 3l2 2-1.5 1.5L1.5 4.5 3 3z"/>
-              </svg>
-            </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Zoom */}
-            <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">100%</button>
-              <div className="w-px h-4 bg-gray-300"></div>
-          </div>
-            
-            {/* Number Format */}
-            <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Default</button>
-              <div className="w-px h-4 bg-gray-300"></div>
-      </div>
-
-            {/* Currency/Percentage */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <DollarSign size={16} className="text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <span className="text-sm text-gray-600">%</span>
-            </button>
-            
-            {/* Decimal places */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-            </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Font controls */}
-          <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Arial</button>
-              <div className="flex items-center">
-                <button className="px-1 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">10</button>
-                <div className="flex flex-col">
-                  <button className="p-0.5 hover:bg-gray-100 rounded">
-                    <svg className="w-3 h-3 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 8l-6 6h12z"/>
-                    </svg>
-                  </button>
-                  <button className="p-0.5 hover:bg-gray-100 rounded">
-                    <svg className="w-3 h-3 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 16l6-6H6z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Text formatting */}
             <button 
               onClick={() => formatCell({ bold: true })}
-              className="p-2 hover:bg-gray-100 rounded font-bold text-gray-600"
+              className="p-2 hover:bg-gray-100 rounded"
             >
-              B
+              <Bold size={16} />
             </button>
             <button 
               onClick={() => formatCell({ italic: true })}
-              className="p-2 hover:bg-gray-100 rounded italic text-gray-600"
+              className="p-2 hover:bg-gray-100 rounded"
             >
-              I
+              <Italic size={16} />
             </button>
             <button 
               onClick={() => formatCell({ underline: true })}
-              className="p-2 hover:bg-gray-100 rounded underline text-gray-600"
+              className="p-2 hover:bg-gray-100 rounded"
             >
-              <span className="text-sm">S</span>
+              <Underline size={16} />
             </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Colors */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-              </svg>
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM5 19V5h14v14H5z"/>
-              </svg>
-            </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Borders */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/>
-              </svg>
-            </button>
-            
-            {/* Merge cells */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 7h6v2H7V7zm0 4h6v2H7v-2zm0 4h6v2H7v-2z"/>
-              </svg>
-            </button>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Alignment */}
+          </div>
+          
           <div className="flex items-center space-x-1">
             <button 
               onClick={() => formatCell({ textAlign: 'left' })}
               className="p-2 hover:bg-gray-100 rounded"
             >
-                <AlignLeft size={16} className="text-gray-600" />
+              <AlignLeft size={16} />
             </button>
             <button 
               onClick={() => formatCell({ textAlign: 'center' })}
               className="p-2 hover:bg-gray-100 rounded"
             >
-                <AlignCenter size={16} className="text-gray-600" />
+              <AlignCenter size={16} />
             </button>
             <button 
               onClick={() => formatCell({ textAlign: 'right' })}
               className="p-2 hover:bg-gray-100 rounded"
             >
-                <AlignRight size={16} className="text-gray-600" />
-              </button>
-            </div>
-            
-            {/* More alignment options */}
-            <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Top</button>
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Middle</button>
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Bottom</button>
-            </div>
-            
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* More tools */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-              </svg>
-            </button>
-            
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <MessageSquare size={16} className="text-gray-600" />
-            </button>
-            
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <BarChart size={16} className="text-gray-600" />
-            </button>
-            
-            {/* Filter */}
-            <div className="relative">
-              <button 
-                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                className={`p-2 rounded flex items-center ${
-                  Object.keys(activeFilters).length > 0 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'hover:bg-gray-100'
-                }`}
-                title="Create a filter"
-              >
-                <Filter size={16} />
-                {Object.keys(activeFilters).length > 0 && (
-                  <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
-                    {Object.keys(activeFilters).length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-          
-          {/* Right side - Sigma function button */}
-          <div className="flex items-center space-x-1">
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <span className="text-lg font-bold text-gray-600">Σ</span>
+              <AlignRight size={16} />
             </button>
           </div>
 
@@ -1185,8 +953,8 @@ const GoogleSheetsClone = () => {
                     className="text-gray-400 hover:text-gray-600"
                   >
                     <X size={16} />
-          </button>
-        </div>
+                  </button>
+                </div>
                 
                 <div className="space-y-3">
                   <div>
@@ -1204,8 +972,8 @@ const GoogleSheetsClone = () => {
                         </option>
                       ))}
                     </select>
-      </div>
-
+                  </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Filter value
@@ -1260,76 +1028,37 @@ const GoogleSheetsClone = () => {
               </div>
             )}
           </div>
-          
-          {/* Logout Button */}
-          <div className="ml-auto">
-            <div className="relative">
-              <button 
-                onClick={() => setShowLogoutMenu(!showLogoutMenu)}
-                className="p-2 hover:bg-gray-100 rounded flex items-center space-x-2"
-                title="User Menu"
-              >
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                  U
-                </div>
-                <ChevronDown size={14} />
-              </button>
-              
-              {showLogoutMenu && (
-                <div className="logout-menu absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
-                  <div className="py-1">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Google Sheets Style Formula Bar */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
-        <div className="flex items-center space-x-3">
+      {/* Formula Bar */}
+      <div className="bg-gray-50 border-b px-4 py-2">
+        <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 bg-white px-2 py-1 border border-gray-300 rounded min-w-12 text-center">{selectedCell}</span>
+            <span className="text-sm font-medium">{selectedCell}</span>
             <button 
               onClick={() => setShowFormulaHelper(!showFormulaHelper)}
-              className="p-1 hover:bg-gray-200 rounded text-gray-600"
+              className="p-1 hover:bg-gray-200 rounded"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
+              <HelpCircle size={14} />
             </button>
           </div>
           <div className="flex-1">
-            <div className="flex items-center border border-gray-300 rounded bg-white">
             <input
               ref={cellInputRef}
               type="text"
               value={formulaBarValue}
               onChange={(e) => setFormulaBarValue(e.target.value)}
               onKeyDown={handleKeyDown}
-                onClick={() => setIsEditing(true)}
               onBlur={() => {
                 if (selectedCell) {
                   updateCell(selectedCell, formulaBarValue);
                 }
                 setIsEditing(false);
               }}
-                className="flex-1 px-3 py-1 focus:outline-none"
+              className="w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter value or formula (start with =)"
             />
-              <button className="px-2 py-1 text-gray-400 hover:text-gray-600 border-l border-gray-300">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H5V6h14v12z"/>
-                </svg>
-              </button>
-            </div>
           </div>
         </div>
         
@@ -1350,87 +1079,90 @@ const GoogleSheetsClone = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex">
-        {/* Google Sheets Style Spreadsheet */}
-        <div className="flex-1 overflow-auto bg-white">
+        {/* Spreadsheet */}
+        <div className="flex-1 overflow-auto" onScroll={handleScroll}>
           <div className="relative">
             <table className="min-w-full border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-gray-50">
-                  <th className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600"></th>
+                <tr className="bg-gray-100">
+                  <th className="w-16 h-8 border border-gray-300 bg-gray-200"></th>
                   {Array.from({ length: 40 }, (_, i) => {
                     const columnName = getColumnName(i + 1);
                     const hasFilter = activeFilters[columnName];
                     return (
-                      <th key={i} className="min-w-20 h-8 border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100">
+                      <th key={i} className="min-w-20 h-8 border border-gray-300 text-xs font-medium text-center relative">
                         <div className="flex items-center justify-center">
                           {columnName}
                           {hasFilter && (
                             <Filter size={12} className="ml-1 text-blue-600" />
                           )}
                         </div>
-                    </th>
+                      </th>
                     );
                   })}
                 </tr>
               </thead>
               <tbody>
-                {Array.from({ length: 100 }, (_, rowIndex) => {
+                {Array.from({ length: visibleRows }, (_, rowIndex) => {
                   // Apply row filtering
                   if (!isRowVisible(rowIndex)) return null;
                   
                   return (
                     <tr key={rowIndex} style={{ height: '24px' }}>
                       <td className="w-16 h-6 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-5">
-                      {rowIndex + 1}
-                    </td>
-                    {Array.from({ length: 40 }, (_, colIndex) => {
-                      const cellId = getColumnName(colIndex + 1) + (rowIndex + 1);
-                      const cellData = data[cellId];
-                      const isSelected = selectedCell === cellId;
-                      
-                      return (
-                        <td
-                          key={cellId}
-                            className={`min-w-20 h-6 border border-gray-200 cursor-cell relative bg-white ${
-                            isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
-                          }`}
-                          onClick={() => handleCellClick(cellId)}
-                          onDoubleClick={() => handleCellDoubleClick(cellId)}
-                        >
-                          {isSelected && isEditing ? (
-                            <input
+                        {rowIndex + 1}
+                      </td>
+                      {Array.from({ length: 40 }, (_, colIndex) => {
+                        const cellId = getColumnName(colIndex + 1) + (rowIndex + 1);
+                        const cellData = memoizedCellData[cellId];
+                        const isSelected = selectedCell === cellId;
+                        
+                        return (
+                          <td
+                            key={cellId}
+                            className={`min-w-20 h-6 border border-gray-300 cursor-cell relative ${
+                              isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                            }`}
+                            onClick={() => handleCellClick(cellId)}
+                            onDoubleClick={() => handleCellDoubleClick(cellId)}
+                          >
+                            {isSelected && isEditing ? (
+                              <input
                                 ref={cellInputRef}
-                              type="text"
-                              value={formulaBarValue}
-                              onChange={(e) => setFormulaBarValue(e.target.value)}
-                              onKeyDown={handleKeyDown}
-                              onBlur={() => {
-                                updateCell(selectedCell, formulaBarValue);
-                                setIsEditing(false);
-                              }}
-                              className="w-full h-full px-1 text-xs border-none outline-none bg-transparent"
-                              autoFocus
-                            />
-                          ) : (
-                            <div 
-                              className="px-1 text-xs truncate"
-                              style={getCellStyle(cellId)}
-                            >
-                              {cellData ? (
-                                typeof cellData.value === 'number' ? 
-                                  cellData.value.toLocaleString() : 
-                                  cellData.value
-                              ) : ''}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                                type="text"
+                                value={formulaBarValue}
+                                onChange={(e) => setFormulaBarValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onBlur={() => {
+                                  updateCell(selectedCell, formulaBarValue);
+                                  setIsEditing(false);
+                                }}
+                                className="w-full h-full px-1 text-xs border-none outline-none bg-transparent"
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className="px-1 text-xs truncate"
+                                style={getCellStyle(cellId)}
+                              >
+                                {cellData ? (
+                                  typeof cellData.value === 'number' ? 
+                                    cellData.value.toLocaleString() : 
+                                    cellData.value
+                                ) : ''}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   );
                 })}
               </tbody>
             </table>
+            
+            {/* Virtual scrolling placeholder */}
+            <div style={{ height: `${(1000 - visibleRows) * 24}px` }} />
           </div>
         </div>
       </div>
