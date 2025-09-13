@@ -186,12 +186,12 @@ const StrixAuth = () => {
                   <button
                     onClick={() => {
                       setAccountType("personal");
-                      setFormData = {
+                      setFormData({
                         email: "",
                         password: "",
                         name: "",
                         company: "",
-                      };
+                      });
                     }}
                     className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                       accountType === "personal"
@@ -205,7 +205,7 @@ const StrixAuth = () => {
                   <button
                     onClick={() => {
                       setAccountType("business");
-                      setFormData ({ formData,
+                      setFormData({
                         email: "",
                         password: "",
                         name: "",
