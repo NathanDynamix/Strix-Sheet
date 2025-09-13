@@ -1486,7 +1486,10 @@ const GoogleSheetsClone = () => {
                <BarChart size={14} />
                <span>Dashboard</span>
              </button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1">
+            <button 
+              onClick={() => navigate('/create-chart')}
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
+            >
               <BarChart size={14} />
               <span>Create Chart</span>
             </button>
