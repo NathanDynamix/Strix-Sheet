@@ -7,6 +7,7 @@ import StrixChart from './component/StrixChart';
 import Menu from './component/Menubar';
 import ImageLink from './component/Image&Link';
 import AdvancedBIDashboard from './component/AdvancedBIDashboard';
+import BIDashboard from './component/BIDashboard';
 import StrixAuth from './component/StrixAuth';
 import ForgotPassword from "./component/ForgetPassword";
 
@@ -18,7 +19,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<StrixAuth/>}/>
             <Route path="/integration" element={<SpreadsheetModel />} />
-            <Route path="/dashboard" element={<AdvancedBIDashboard/>}/>
+            <Route path="/dashboard" element={<BIDashboard/>}/>
             <Route path="/sheet" element={<SpreadsheetModel />} />
             <Route path="/charts" element={<StrixChart />} />
             <Route path="/menu" element={<Menu />} />

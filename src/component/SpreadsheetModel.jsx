@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
   Bold,
   Italic,
@@ -128,6 +129,7 @@ const GoogleSheetsClone = () => {
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
 
+  const navigate = useNavigate();
   const cellInputRef = useRef(null);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
   const data = activeSheet ? activeSheet.data : {};
@@ -1473,23 +1475,34 @@ const GoogleSheetsClone = () => {
                 </div>
               </div>
             )}
-
-            
           </div>
 
-          {/* Right side - Action buttons */}
-          <div className="flex items-center space-x-2">
-            <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1">
-              <BarChart size={14} />
-              <span>Dashboard</span>
-            </button>
+           {/* Right side - Action buttons */}
+           <div className="flex items-center space-x-2">
+             <button 
+               onClick={() => navigate('/dashboard')}
+               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
+             >
+               <BarChart size={14} />
+               <span>Dashboard</span>
+             </button>
             <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1">
               <BarChart size={14} />
               <span>Create Chart</span>
             </button>
             <button className="px-3 py-1 bg-white text-gray-700 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 flex items-center space-x-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
               </svg>
               <span>Import CSV</span>
             </button>
