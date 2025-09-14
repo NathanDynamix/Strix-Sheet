@@ -1,12 +1,11 @@
 import React from 'react';
-import {BrowserRouter, Routes, Route } from "react-router-dom"; 
+import { Routes, Route } from "react-router-dom"; 
 import { Toaster } from 'sonner';
 import SpreadsheetModel from './component/SpreadsheetModel';
 import PowerBIDashboard from './component/PowerBIDashboard';
 import StrixChart from './component/StrixChart';
 import Menu from './component/Menubar';
 import ImageLink from './component/Image&Link';
-import AdvancedBIDashboard from './component/AdvancedBIDashboard';
 import BIDashboard from './component/BIDashboard';
 import CreateChart from './component/CreateChart';
 import StrixAuth from './component/StrixAuth';

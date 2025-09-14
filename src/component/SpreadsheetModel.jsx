@@ -7,45 +7,21 @@ import React, {
 } from "react";
 import { useNavigate } from 'react-router-dom';
 import {
-  Bold,
-  Italic,
-  Underline,
   AlignLeft,
   AlignCenter,
   AlignRight,
   Palette,
-  Grid3X3,
   Calculator,
   ChevronDown,
-  Printer,
   Undo,
   Redo,
-  Copy,
-  Clipboard,
-  Save,
-  Download,
   Filter,
   BarChart,
-  Share,
   MessageSquare,
-  Clock,
   Plus,
-  FileText,
-  PieChart,
-  LineChart,
-  AreaChart,
   X,
-  Search,
-  SortAsc,
-  SortDesc,
-  Eye,
-  EyeOff,
   Trash2,
-  HelpCircle,
-  TrendingUp,
-  Activity,
   DollarSign,
-  Menu,
   FilterX,
 } from "lucide-react";
 import {
@@ -61,20 +37,11 @@ import {
   Line,
   Bar,
   Cell,
-  Area,
-  AreaChart as RechartsAreaChart,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ScatterChart,
-  Scatter,
-  ComposedChart,
+  AreaChart ,
 } from "recharts";
 
 const GoogleSheetsClone = () => {
-  // Initialize spreadsheet data for 1000 cells (40 columns x 1000 rows)
+  // Initialize spreadsheet data for 40,000 cells (40 columns x 1000 rows)
   const initializeData = () => {
     const data = {};
     for (let row = 1; row <= 1000; row++) {
@@ -103,7 +70,9 @@ const GoogleSheetsClone = () => {
   const [activeSheetId, setActiveSheetId] = useState("sheet1");
   const [selectedCell, setSelectedCell] = useState("A1");
   const [formulaBarValue, setFormulaBarValue] = useState("");
+  const [cellEditValue, setCellEditValue] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isProcessingInput, setIsProcessingInput] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFunctionMenu, setShowFunctionMenu] = useState(false);
   const [clipboard, setClipboard] = useState(null);
@@ -131,6 +100,8 @@ const GoogleSheetsClone = () => {
 
   const navigate = useNavigate();
   const cellInputRef = useRef(null);
+  const formulaBarInputRef = useRef(null);
+  const isNavigatingRef = useRef(false);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
   const data = activeSheet ? activeSheet.data : {};
 
@@ -749,28 +720,65 @@ const GoogleSheetsClone = () => {
   };
 
   const handleCellClick = (cellId) => {
+    // Set navigation flag to prevent interference
+    isNavigatingRef.current = true;
+    
+    // If we're currently editing a different cell, save it first
+    if (isEditing && selectedCell && selectedCell !== cellId) {
+      updateCell(selectedCell, cellEditValue);
+      setIsEditing(false);
+    }
+    
     setSelectedCell(cellId);
     const cellData = data[cellId];
-    setFormulaBarValue(
-      cellData ? cellData.formula || cellData.value || "" : ""
-    );
-    setIsEditing(true); // Enable editing on single click
-    setTimeout(() => {
+    const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
+    setFormulaBarValue(cellValue);
+    setCellEditValue(cellValue);
+    setIsProcessingInput(false);
+    
+    // Set editing state and focus immediately
+    setIsEditing(true);
+    
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
       if (cellInputRef.current) {
         cellInputRef.current.focus();
-        cellInputRef.current.select();
+        // Position cursor at end instead of selecting all text
+        const length = cellInputRef.current.value.length;
+        cellInputRef.current.setSelectionRange(length, length);
       }
-    }, 0);
+      // Clear navigation flag after focus is set
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 50);
+    });
   };
 
   const handleCellDoubleClick = (cellId) => {
+    // If we're currently editing a different cell, save it first
+    if (isEditing && selectedCell && selectedCell !== cellId) {
+      updateCell(selectedCell, cellEditValue);
+      setIsEditing(false);
+    }
+    
+    // Double-click selects all text for replacement
     setSelectedCell(cellId);
+    const cellData = data[cellId];
+    const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
+    setCellEditValue(cellValue);
+    setFormulaBarValue(cellValue);
+    setIsProcessingInput(false);
+    
+    // Set editing state immediately
     setIsEditing(true);
-    setTimeout(() => {
+    
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
       if (cellInputRef.current) {
         cellInputRef.current.focus();
+        cellInputRef.current.select(); // Select all text for replacement
       }
-    }, 0);
+    });
   };
 
   const handleFormulaBarChange = (value) => {
@@ -780,37 +788,63 @@ const GoogleSheetsClone = () => {
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && selectedCell) {
-      updateCell(selectedCell, formulaBarValue);
-      setIsEditing(false);
-
-      // Move to next row
-      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-      if (match) {
-        const nextCell = match[1] + (parseInt(match[2]) + 1);
-        handleCellClick(nextCell);
-      }
-    } else if (e.key === "Tab" && selectedCell) {
+  // Handle keyboard input when cell is selected but not editing
+  const handleKeyPress = (e) => {
+    // Only handle printable characters, not special keys
+    const isPrintableKey = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+    
+    // Only handle if we're not already editing, not processing, and not in formula bar
+    if (!isEditing && !isProcessingInput && selectedCell && isPrintableKey && document.activeElement !== formulaBarInputRef.current) {
+      // Prevent the default behavior to avoid duplication
       e.preventDefault();
-      updateCell(selectedCell, formulaBarValue);
-      setIsEditing(false);
-
-      // Move to next column
-      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-      if (match) {
-        const colNum = getColumnNumber(match[1]);
-        const nextCell = getColumnName(colNum + 1) + match[2];
-        handleCellClick(nextCell);
-      }
-    } else if (e.key === "Escape") {
-      setIsEditing(false);
+      setIsProcessingInput(true);
+      // Start editing when user types a character
+      setIsEditing(true);
       const cellData = data[selectedCell];
-      setFormulaBarValue(
-        cellData ? cellData.formula || cellData.value || "" : ""
-      );
+      const existingValue = cellData ? cellData.formula || cellData.value || "" : "";
+      setCellEditValue(existingValue + e.key);
+      setFormulaBarValue(existingValue + e.key);
+      setTimeout(() => {
+        if (cellInputRef.current) {
+          cellInputRef.current.focus();
+          cellInputRef.current.setSelectionRange(existingValue.length + 1, existingValue.length + 1);
+        }
+        setIsProcessingInput(false);
+      }, 0);
     }
   };
+
+  // Ensure the main container can receive focus for keyboard events
+  useEffect(() => {
+    const mainContainer = document.querySelector('.main-spreadsheet-container');
+    if (mainContainer) {
+      mainContainer.focus();
+    }
+  }, []);
+
+  // Handle clicks outside the spreadsheet to save current cell
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const isInsideSpreadsheet = e.target.closest('.main-spreadsheet-container');
+      const isCellInput = e.target.tagName === 'INPUT' && e.target.className.includes('border-none');
+      
+      if (!isInsideSpreadsheet && isEditing && selectedCell && !isCellInput) {
+        updateCell(selectedCell, cellEditValue);
+        setIsEditing(false);
+      }
+    };
+
+    // Use a longer delay to prevent interference with cell navigation
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 200);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditing, selectedCell, cellEditValue]);
+
 
   const generateChart = () => {
     const selectedData = [];
@@ -907,7 +941,11 @@ const GoogleSheetsClone = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div 
+      className="flex flex-col h-screen bg-white main-spreadsheet-container" 
+      onKeyDown={handleKeyPress}
+      tabIndex={0}
+    >
       {/* Strix Header */}
       <div className="bg-white border-b border-gray-200">
         {/* Top Header Bar */}
@@ -1530,23 +1568,62 @@ const GoogleSheetsClone = () => {
             </button>
           </div>
           <div className="flex-1">
-            <div className="flex items-center border border-gray-300 rounded bg-white">
-              <input
-                ref={cellInputRef}
-                type="text"
-                value={formulaBarValue}
-                onChange={(e) => setFormulaBarValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onClick={() => setIsEditing(true)}
-                onBlur={() => {
-                  if (selectedCell) {
-                    updateCell(selectedCell, formulaBarValue);
+            <div 
+              className="flex items-center border border-gray-300 rounded bg-white cursor-text"
+              onClick={() => {
+                setTimeout(() => {
+                  if (formulaBarInputRef.current) {
+                    formulaBarInputRef.current.focus();
+                    // Don't select all text - just position cursor at end for editing
+                    const length = formulaBarInputRef.current.value.length;
+                    formulaBarInputRef.current.setSelectionRange(length, length);
                   }
-                  setIsEditing(false);
-                }}
-                className="flex-1 px-3 py-1 focus:outline-none"
-                placeholder="Enter value or formula (start with =)"
-              />
+                }, 0);
+              }}
+            >
+                <input
+                  ref={formulaBarInputRef}
+                  type="text"
+                  value={formulaBarValue}
+                  onChange={(e) => setFormulaBarValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && selectedCell) {
+                      updateCell(selectedCell, formulaBarValue);
+                      // Move to next row
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const nextCell = match[1] + (parseInt(match[2]) + 1);
+                        handleCellClick(nextCell);
+                      }
+                    } else if (e.key === "Tab" && selectedCell) {
+                      e.preventDefault();
+                      updateCell(selectedCell, formulaBarValue);
+                      // Move to next column
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const colNum = getColumnNumber(match[1]);
+                        const nextCell = getColumnName(colNum + 1) + match[2];
+                        handleCellClick(nextCell);
+                      }
+                    }
+                  }}
+                  onFocus={() => setIsEditing(true)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (selectedCell) {
+                        updateCell(selectedCell, formulaBarValue);
+                      }
+                      setIsEditing(false);
+                    }, 150);
+                  }}
+                  onMouseUp={(e) => {
+                    // Allow normal text selection behavior
+                    e.stopPropagation();
+                  }}
+                  className="flex-1 px-3 py-1 focus:outline-none"
+                  placeholder="Enter value or formula (start with =)"
+                  autoComplete="off"
+                />
               <button className="px-2 py-1 text-gray-400 hover:text-gray-600 border-l border-gray-300">
                 <svg
                   className="w-4 h-4"
@@ -1576,43 +1653,44 @@ const GoogleSheetsClone = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex flex-col">
         {/* Google Sheets Style Spreadsheet */}
-        <div className="flex-1 overflow-auto bg-white">
+        <div className="flex-1 overflow-auto bg-white" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <div className="relative">
-            <table className="min-w-full border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-gray-50">
-                  <th className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600"></th>
-                  {Array.from({ length: 40 }, (_, i) => {
-                    const columnName = getColumnName(i + 1);
-                    const hasFilter = activeFilters[columnName];
-                    return (
-                      <th
-                        key={i}
-                        className="min-w-20 h-8 border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100"
-                      >
-                        <div className="flex items-center justify-center">
-                          {columnName}
-                          {hasFilter && (
-                            <Filter size={12} className="ml-1 text-blue-600" />
-                          )}
-                        </div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 100 }, (_, rowIndex) => {
-                  // Apply row filtering
-                  if (!isRowVisible(rowIndex)) return null;
+             <table className="min-w-full border-collapse">
+               <thead className="sticky top-0 z-20">
+                 <tr className="bg-gray-50">
+                   <th className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-30" style={{ minWidth: '64px', maxWidth: '64px' }}></th>
+                   {Array.from({ length: 40 }, (_, i) => {
+                     const columnName = getColumnName(i + 1);
+                     const hasFilter = activeFilters[columnName];
+                     return (
+                       <th
+                         key={i}
+                         className="min-w-20 h-8 border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100"
+                         style={{ minWidth: '80px' }}
+                       >
+                         <div className="flex items-center justify-center">
+                           {columnName}
+                           {hasFilter && (
+                             <Filter size={12} className="ml-1 text-blue-600" />
+                           )}
+                         </div>
+                       </th>
+                     );
+                   })}
+                 </tr>
+               </thead>
+               <tbody>
+                 {Array.from({ length: 100 }, (_, rowIndex) => {
+                   // Apply row filtering
+                   if (!isRowVisible(rowIndex)) return null;
 
-                  return (
-                    <tr key={rowIndex} style={{ height: "24px" }}>
-                      <td className="w-16 h-6 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-5">
-                        {rowIndex + 1}
-                      </td>
+                   return (
+                     <tr key={rowIndex} style={{ height: "24px" }}>
+                       <td className="w-16 h-6 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10" style={{ minWidth: '64px', maxWidth: '64px' }}>
+                         {rowIndex + 1}
+                       </td>
                       {Array.from({ length: 40 }, (_, colIndex) => {
                         const cellId =
                           getColumnName(colIndex + 1) + (rowIndex + 1);
@@ -1627,21 +1705,66 @@ const GoogleSheetsClone = () => {
                                 ? "ring-2 ring-blue-500 bg-blue-50"
                                 : "hover:bg-gray-50"
                             }`}
-                            onClick={() => handleCellClick(cellId)}
-                            onDoubleClick={() => handleCellDoubleClick(cellId)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleCellClick(cellId);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleCellDoubleClick(cellId);
+                            }}
                           >
                             {isSelected && isEditing ? (
                               <input
                                 ref={cellInputRef}
                                 type="text"
-                                value={formulaBarValue}
-                                onChange={(e) =>
-                                  setFormulaBarValue(e.target.value)
-                                }
-                                onKeyDown={handleKeyDown}
-                                onBlur={() => {
-                                  updateCell(selectedCell, formulaBarValue);
-                                  setIsEditing(false);
+                                value={cellEditValue}
+                                onChange={(e) => {
+                                  setCellEditValue(e.target.value);
+                                  setFormulaBarValue(e.target.value);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    updateCell(selectedCell, cellEditValue);
+                                    setIsEditing(false);
+                                    // Move to next row
+                                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                                    if (match) {
+                                      const nextCell = match[1] + (parseInt(match[2]) + 1);
+                                      handleCellClick(nextCell);
+                                    }
+                                  } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    setIsEditing(false);
+                                    setCellEditValue(cellData ? cellData.formula || cellData.value || "" : "");
+                                  }
+                                }}
+                                onFocus={() => {
+                                  // Ensure we're in editing mode when focused
+                                  setIsEditing(true);
+                                }}
+                                onMouseDown={(e) => {
+                                  // Prevent the cell click from interfering with input focus
+                                  e.stopPropagation();
+                                }}
+                                onBlur={(e) => {
+                                  // Don't blur if we're navigating between cells
+                                  if (isNavigatingRef.current) {
+                                    return;
+                                  }
+                                  
+                                  // Check if focus is moving to another cell input
+                                  const relatedTarget = e.relatedTarget;
+                                  const isMovingToAnotherCell = relatedTarget && relatedTarget.tagName === 'INPUT' && relatedTarget.className.includes('border-none');
+                                  
+                                  if (!isMovingToAnotherCell) {
+                                    // Save immediately without delay to prevent focus issues
+                                    updateCell(selectedCell, cellEditValue);
+                                    setIsEditing(false);
+                                  }
                                 }}
                                 className="w-full h-full px-1 text-xs border-none outline-none bg-transparent"
                                 autoFocus
@@ -1668,27 +1791,27 @@ const GoogleSheetsClone = () => {
             </table>
           </div>
         </div>
-      </div>
-
-      {/* Sheet Tabs */}
-      <div className="bg-gray-50 border-t px-4 py-2">
-        <div className="flex items-center space-x-2">
-          {sheets.map((sheet) => (
-            <button
-              key={sheet.id}
-              onClick={() => setActiveSheetId(sheet.id)}
-              className={`px-3 py-1 text-sm rounded ${
-                activeSheetId === sheet.id
-                  ? "bg-white border border-gray-300"
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              {sheet.name}
+        
+        {/* Sheet Tabs - Fixed at bottom */}
+        <div className="bg-gray-50 border-t px-4 py-2 flex-shrink-0">
+          <div className="flex items-center space-x-2">
+            {sheets.map((sheet) => (
+              <button
+                key={sheet.id}
+                onClick={() => setActiveSheetId(sheet.id)}
+                className={`px-3 py-1 text-sm rounded ${
+                  activeSheetId === sheet.id
+                    ? "bg-white border border-gray-300"
+                    : "hover:bg-gray-200"
+                }`}
+              >
+                {sheet.name}
+              </button>
+            ))}
+            <button onClick={addSheet} className="p-1 hover:bg-gray-200 rounded">
+              <Plus size={16} />
             </button>
-          ))}
-          <button onClick={addSheet} className="p-1 hover:bg-gray-200 rounded">
-            <Plus size={16} />
-          </button>
+          </div>
         </div>
       </div>
 
