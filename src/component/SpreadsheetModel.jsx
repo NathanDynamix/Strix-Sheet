@@ -337,9 +337,16 @@ const GoogleSheetsClone = () => {
   const handleCut = () => {
     if (selectedCell) {
       const cellData = getCellData(selectedCell);
+      console.log('Cutting cell data:', cellData);
+      
+      // Store the cell data in clipboard
       setClipboard(cellData);
       setClipboardType('cut');
-      updateCellLocal(selectedCell, '');
+      
+      // Clear the cell and update formula bar
+      updateCellLocal(selectedCell, '', '', {});
+      setFormulaBarValue('');
+      
       showSuccess('Cell cut to clipboard');
     }
   };
@@ -347,6 +354,8 @@ const GoogleSheetsClone = () => {
   const handleCopy = () => {
     if (selectedCell) {
       const cellData = getCellData(selectedCell);
+      console.log('Copying cell data:', cellData);
+      
       setClipboard(cellData);
       setClipboardType('copy');
       showSuccess('Cell copied to clipboard');
@@ -355,12 +364,22 @@ const GoogleSheetsClone = () => {
 
   const handlePaste = () => {
     if (clipboard && selectedCell) {
-      updateCellLocal(selectedCell, clipboard.value || '');
+      console.log('Pasting data:', clipboard);
+      
+      // Update both the cell data and formula bar
+      const valueToPaste = clipboard.value || clipboard.formula || '';
+      updateCellLocal(selectedCell, valueToPaste, clipboard.formula, clipboard.style);
+      
+      // Update formula bar to show the pasted content
+      setFormulaBarValue(valueToPaste);
+      
       if (clipboardType === 'cut') {
         setClipboard(null);
         setClipboardType(null);
       }
       showSuccess('Cell pasted');
+    } else {
+      console.log('No clipboard data or selected cell:', { clipboard, selectedCell });
     }
   };
 

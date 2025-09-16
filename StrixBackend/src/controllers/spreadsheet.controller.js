@@ -5,7 +5,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 // Create a new spreadsheet
 const createSpreadsheet = asyncHandler(async (req, res) => {
+  console.log("📝 Creating new spreadsheet...");
   const { title, description, owner } = req.body;
+  console.log("   Title:", title);
+  console.log("   Description:", description);
+  console.log("   Owner:", owner);
 
   if (!title) {
     throw new ApiError(400, "Spreadsheet title is required");
@@ -41,7 +45,9 @@ const createSpreadsheet = asyncHandler(async (req, res) => {
 
 // Get all spreadsheets for a user
 const getSpreadsheets = asyncHandler(async (req, res) => {
+  console.log("📋 Getting spreadsheets for user...");
   const { userId } = req.query;
+  console.log("   User ID:", userId);
   
   if (!userId) {
     throw new ApiError(400, "User ID is required");
@@ -153,9 +159,15 @@ const deleteSpreadsheet = asyncHandler(async (req, res) => {
 
 // Update a specific cell
 const updateCell = asyncHandler(async (req, res) => {
+  console.log("✏️ Updating cell...");
   const { id } = req.params;
   const { sheetId, cellId, cellData } = req.body;
   const { userId } = req.query;
+  console.log("   Spreadsheet ID:", id);
+  console.log("   Sheet ID:", sheetId);
+  console.log("   Cell ID:", cellId);
+  console.log("   Cell Data:", cellData);
+  console.log("   User ID:", userId);
 
   const spreadsheet = await Spreadsheet.findById(id);
 
