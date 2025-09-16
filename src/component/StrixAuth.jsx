@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { auth, provider, signInWithPopup } from "../Firebase";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Link } from "react-router-dom";
 import {
   Mail,
@@ -35,6 +36,7 @@ const StrixAuth = () => {
 
   const navigate = useNavigate();
   const { signup, login } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const handleInputChange = (e) => {
     setFormData({
@@ -55,12 +57,16 @@ const StrixAuth = () => {
 
       // Store user info in localStorage (optional)
       localStorage.setItem("user", JSON.stringify(user));
-      alert("Login successful!");
-      navigate("/integration")
+      showSuccess("Welcome back! You've successfully signed in with Google.");
+      navigate("/integration");
 
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError("Failed to sign in with Google. Please try again.");
+      const errorMessage = error.code === 'auth/popup-closed-by-user' 
+        ? "Sign-in was cancelled. Please try again."
+        : "Failed to sign in with Google. Please try again.";
+      showError(errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -97,19 +103,26 @@ const StrixAuth = () => {
 
     try {
       await login(email, password);
-      alert("Login successful!");
+      showSuccess("Welcome back! You've successfully signed in.");
       navigate("/integration");
     } catch (error) {
       console.error("Login error:", error);
+      let errorMessage = "Failed to sign in. Please try again.";
+      
       if (error.code === 'auth/user-not-found') {
-        setError("No account found with this email. Please sign up first.");
+        errorMessage = "No account found with this email. Please sign up first.";
       } else if (error.code === 'auth/wrong-password') {
-        setError("Incorrect password. Please try again.");
+        errorMessage = "Incorrect password. Please try again.";
       } else if (error.code === 'auth/invalid-email') {
-        setError("Invalid email address.");
-      } else {
-        setError("Failed to sign in. Please try again.");
+        errorMessage = "Invalid email address.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Too many failed attempts. Please try again later.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "This account has been disabled. Please contact support.";
       }
+      
+      showError(errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -151,7 +164,7 @@ const StrixAuth = () => {
 
     try {
       await signup(email, password, name);
-      alert("Account Created Successfully!");
+      showSuccess("Account created successfully! You can now sign in.");
       
       setFormData({
         email: "",
@@ -163,15 +176,20 @@ const StrixAuth = () => {
       setCurrentView("login");
     } catch (error) {
       console.error("Signup error:", error);
+      let errorMessage = "Failed to create account. Please try again.";
+      
       if (error.code === 'auth/email-already-in-use') {
-        setError("An account with this email already exists. Please sign in instead.");
+        errorMessage = "An account with this email already exists. Please sign in instead.";
       } else if (error.code === 'auth/weak-password') {
-        setError("Password should be at least 6 characters long.");
+        errorMessage = "Password should be at least 6 characters long.";
       } else if (error.code === 'auth/invalid-email') {
-        setError("Invalid email address.");
-      } else {
-        setError("Failed to create account. Please try again.");
+        errorMessage = "Invalid email address.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = "Email/password accounts are not enabled. Please contact support.";
       }
+      
+      showError(errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

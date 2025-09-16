@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSpreadsheet } from '../context/SpreadsheetContext';
+import { useToast } from '../context/ToastContext';
 import { 
   Plus, 
   FileSpreadsheet, 
@@ -25,6 +26,7 @@ const SpreadsheetDashboard = () => {
     createSpreadsheet, 
     deleteSpreadsheet 
   } = useSpreadsheet();
+  const { showSuccess, showError } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,6 +51,8 @@ const SpreadsheetDashboard = () => {
         newSpreadsheetDescription.trim()
       );
       
+      showSuccess(`Spreadsheet "${newSpreadsheetTitle}" created successfully!`);
+      
       // Navigate to the new spreadsheet
       navigate('/integration');
       
@@ -58,6 +62,7 @@ const SpreadsheetDashboard = () => {
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating spreadsheet:', error);
+      showError('Failed to create spreadsheet. Please try again.');
     } finally {
       setIsCreating(false);
     }
@@ -67,14 +72,17 @@ const SpreadsheetDashboard = () => {
     if (window.confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
       try {
         await deleteSpreadsheet(id);
+        showSuccess(`Spreadsheet "${title}" deleted successfully.`);
       } catch (error) {
         console.error('Error deleting spreadsheet:', error);
+        showError('Failed to delete spreadsheet. Please try again.');
       }
     }
   };
 
   const handleLogout = () => {
     logout();
+    showSuccess('You have been logged out successfully.');
     navigate('/');
   };
 

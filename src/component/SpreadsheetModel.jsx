@@ -8,6 +8,7 @@ import React, {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSpreadsheet } from '../context/SpreadsheetContext';
+import { useToast } from '../context/ToastContext';
 import {
   AlignLeft,
   AlignCenter,
@@ -52,6 +53,7 @@ const GoogleSheetsClone = () => {
     getCurrentSheetData,
     getCellData 
   } = useSpreadsheet();
+  const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
   // Initialize spreadsheet data for 40,000 cells (40 columns x 1000 rows)
@@ -213,9 +215,11 @@ const GoogleSheetsClone = () => {
   const handleLogout = async () => {
     try {
       await logout();
+      showSuccess('You have been logged out successfully.');
       navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
+      showError('Failed to logout. Please try again.');
     }
   };
 
