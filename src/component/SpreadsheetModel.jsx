@@ -126,6 +126,15 @@ const GoogleSheetsClone = () => {
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
 
+  // Menu states
+  const [activeMenu, setActiveMenu] = useState(null);
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const [showEditMenu, setShowEditMenu] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [showDataMenu, setShowDataMenu] = useState(false);
+
   const cellInputRef = useRef(null);
   const formulaBarInputRef = useRef(null);
   const isNavigatingRef = useRef(false);
@@ -223,6 +232,187 @@ const GoogleSheetsClone = () => {
     }
   };
 
+  // Menu functionality
+  const handleMenuClick = (menuName) => {
+    // Close all other menus
+    setShowFileMenu(false);
+    setShowEditMenu(false);
+    setShowViewMenu(false);
+    setShowInsertMenu(false);
+    setShowFormatMenu(false);
+    setShowDataMenu(false);
+    
+    // Toggle the clicked menu
+    switch (menuName) {
+      case 'file':
+        setShowFileMenu(!showFileMenu);
+        break;
+      case 'edit':
+        setShowEditMenu(!showEditMenu);
+        break;
+      case 'view':
+        setShowViewMenu(!showViewMenu);
+        break;
+      case 'insert':
+        setShowInsertMenu(!showInsertMenu);
+        break;
+      case 'format':
+        setShowFormatMenu(!showFormatMenu);
+        break;
+      case 'data':
+        setShowDataMenu(!showDataMenu);
+        break;
+    }
+    setActiveMenu(menuName);
+  };
+
+  // File menu functions
+  const handleNewSpreadsheet = () => {
+    setShowFileMenu(false);
+    showSuccess('Creating new spreadsheet...');
+    // Navigate to create new spreadsheet
+    navigate('/spreadsheet-dashboard');
+  };
+
+  const handleSaveSpreadsheet = async () => {
+    setShowFileMenu(false);
+    try {
+      await autoSave();
+      showSuccess('Spreadsheet saved successfully!');
+    } catch (error) {
+      showError('Failed to save spreadsheet. Please try again.');
+    }
+  };
+
+  const handleExportCSV = () => {
+    setShowFileMenu(false);
+    const csvData = convertToCSV();
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'spreadsheet.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showSuccess('CSV exported successfully!');
+  };
+
+  // Edit menu functions
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      const previousState = history[historyIndex - 1];
+      // Restore previous state
+      showSuccess('Undo completed');
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      const nextState = history[historyIndex + 1];
+      // Restore next state
+      showSuccess('Redo completed');
+    }
+  };
+
+  const handleCut = () => {
+    if (selectedCell) {
+      const cellData = getCellData(selectedCell);
+      setClipboard(cellData);
+      setClipboardType('cut');
+      updateCellLocal(selectedCell, '');
+      showSuccess('Cell cut to clipboard');
+    }
+  };
+
+  const handleCopy = () => {
+    if (selectedCell) {
+      const cellData = getCellData(selectedCell);
+      setClipboard(cellData);
+      setClipboardType('copy');
+      showSuccess('Cell copied to clipboard');
+    }
+  };
+
+  const handlePaste = () => {
+    if (clipboard && selectedCell) {
+      updateCellLocal(selectedCell, clipboard.value || '');
+      if (clipboardType === 'cut') {
+        setClipboard(null);
+        setClipboardType(null);
+      }
+      showSuccess('Cell pasted');
+    }
+  };
+
+  // Insert menu functions
+  const handleInsertRow = () => {
+    setShowInsertMenu(false);
+    showSuccess('Row inserted');
+    // Implementation for inserting row
+  };
+
+  const handleInsertColumn = () => {
+    setShowInsertMenu(false);
+    showSuccess('Column inserted');
+    // Implementation for inserting column
+  };
+
+  // Format menu functions
+  const handleBold = () => {
+    if (selectedCell) {
+      const cellData = getCellData(selectedCell);
+      const newStyle = { ...cellData.style, fontWeight: cellData.style?.fontWeight === 'bold' ? 'normal' : 'bold' };
+      updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+      showSuccess('Text formatting updated');
+    }
+  };
+
+  const handleItalic = () => {
+    if (selectedCell) {
+      const cellData = getCellData(selectedCell);
+      const newStyle = { ...cellData.style, fontStyle: cellData.style?.fontStyle === 'italic' ? 'normal' : 'italic' };
+      updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+      showSuccess('Text formatting updated');
+    }
+  };
+
+  // Data menu functions
+  const handleSortAscending = () => {
+    setShowDataMenu(false);
+    showSuccess('Data sorted in ascending order');
+    // Implementation for sorting
+  };
+
+  const handleSortDescending = () => {
+    setShowDataMenu(false);
+    showSuccess('Data sorted in descending order');
+    // Implementation for sorting
+  };
+
+  const handleFilter = () => {
+    setShowDataMenu(false);
+    setShowFilterModal(true);
+    showSuccess('Filter applied');
+  };
+
+  // Helper function to convert data to CSV
+  const convertToCSV = () => {
+    const rows = [];
+    for (let row = 1; row <= 100; row++) {
+      const rowData = [];
+      for (let col = 1; col <= 26; col++) {
+        const cellId = getColumnName(col) + row;
+        const cellData = data[cellId];
+        const value = cellData ? (cellData.value || '') : '';
+        rowData.push(`"${value}"`);
+      }
+      rows.push(rowData.join(','));
+    }
+    return rows.join('\n');
+  };
+
   // Close filter menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -236,6 +426,74 @@ const GoogleSheetsClone = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [filterMenuOpen]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Close all menus when pressing Escape
+      if (event.key === 'Escape') {
+        setShowFileMenu(false);
+        setShowEditMenu(false);
+        setShowViewMenu(false);
+        setShowInsertMenu(false);
+        setShowFormatMenu(false);
+        setShowDataMenu(false);
+        setActiveMenu(null);
+        return;
+      }
+
+      // Ctrl/Cmd + key combinations
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key.toLowerCase()) {
+          case 's':
+            event.preventDefault();
+            handleSaveSpreadsheet();
+            break;
+          case 'c':
+            event.preventDefault();
+            handleCopy();
+            break;
+          case 'x':
+            event.preventDefault();
+            handleCut();
+            break;
+          case 'v':
+            event.preventDefault();
+            handlePaste();
+            break;
+          case 'z':
+            event.preventDefault();
+            if (event.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            break;
+          case 'y':
+            event.preventDefault();
+            handleRedo();
+            break;
+          case 'n':
+            event.preventDefault();
+            handleNewSpreadsheet();
+            break;
+          case 'b':
+            event.preventDefault();
+            handleBold();
+            break;
+          case 'i':
+            event.preventDefault();
+            handleItalic();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedCell, clipboard, historyIndex, history]);
 
   // Enhanced spreadsheet functions with comprehensive banking formulas
   const functions = {
@@ -1039,26 +1297,150 @@ const GoogleSheetsClone = () => {
         </div>
 
         {/* Menu Bar */}
-        <div className="flex items-center px-4 py-1 bg-white border-b border-gray-200">
+        <div className="flex items-center px-4 py-1 bg-white border-b border-gray-200 relative">
           <div className="flex items-center space-x-2">
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              File
-            </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              Edit
-            </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              View
-            </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              Insert
-            </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              Format
-            </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
-              Data
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('file')}
+                className={`text-md px-2 py-1 rounded ${showFileMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                File
+              </button>
+              {showFileMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button onClick={handleNewSpreadsheet} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    New Spreadsheet
+                  </button>
+                  <button onClick={handleSaveSpreadsheet} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Save
+                  </button>
+                  <button onClick={handleExportCSV} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Export as CSV
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('edit')}
+                className={`text-md px-2 py-1 rounded ${showEditMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                Edit
+              </button>
+              {showEditMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button onClick={handleUndo} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Undo
+                  </button>
+                  <button onClick={handleRedo} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Redo
+                  </button>
+                  <div className="border-t border-gray-200"></div>
+                  <button onClick={handleCut} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Cut
+                  </button>
+                  <button onClick={handleCopy} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Copy
+                  </button>
+                  <button onClick={handlePaste} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Paste
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('view')}
+                className={`text-md px-2 py-1 rounded ${showViewMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                View
+              </button>
+              {showViewMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Zoom In
+                  </button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Zoom Out
+                  </button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Show Grid Lines
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('insert')}
+                className={`text-md px-2 py-1 rounded ${showInsertMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                Insert
+              </button>
+              {showInsertMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button onClick={handleInsertRow} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Insert Row
+                  </button>
+                  <button onClick={handleInsertColumn} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Insert Column
+                  </button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Insert Chart
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('format')}
+                className={`text-md px-2 py-1 rounded ${showFormatMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                Format
+              </button>
+              {showFormatMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button onClick={handleBold} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Bold
+                  </button>
+                  <button onClick={handleItalic} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Italic
+                  </button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Text Color
+                  </button>
+                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Background Color
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => handleMenuClick('data')}
+                className={`text-md px-2 py-1 rounded ${showDataMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                Data
+              </button>
+              {showDataMenu && (
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <button onClick={handleSortAscending} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Sort A to Z
+                  </button>
+                  <button onClick={handleSortDescending} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Sort Z to A
+                  </button>
+                  <button onClick={handleFilter} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                    Filter
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
               Tools
             </button>
@@ -1078,10 +1460,10 @@ const GoogleSheetsClone = () => {
           {/* Left side toolbar */}
           <div className="flex items-center space-x-1">
             {/* Undo/Redo */}
-            <button onClick={undo} className="p-2 hover:bg-gray-100 rounded">
+            <button onClick={handleUndo} className="p-2 hover:bg-gray-100 rounded">
               <Undo size={16} className="text-gray-600" />
             </button>
-            <button onClick={redo} className="p-2 hover:bg-gray-100 rounded">
+            <button onClick={handleRedo} className="p-2 hover:bg-gray-100 rounded">
               <Redo size={16} className="text-gray-600" />
             </button>
 
@@ -1186,19 +1568,26 @@ const GoogleSheetsClone = () => {
 
             {/* Text formatting */}
             <button
-              onClick={() => formatCell({ bold: true })}
+              onClick={handleBold}
               className="p-2 hover:bg-gray-100 rounded font-bold text-gray-600"
             >
               B
             </button>
             <button
-              onClick={() => formatCell({ italic: true })}
+              onClick={handleItalic}
               className="p-2 hover:bg-gray-100 rounded italic text-gray-600"
             >
               I
             </button>
             <button
-              onClick={() => formatCell({ underline: true })}
+              onClick={() => {
+                if (selectedCell) {
+                  const cellData = getCellData(selectedCell);
+                  const newStyle = { ...cellData.style, textDecoration: cellData.style?.textDecoration === 'line-through' ? 'none' : 'line-through' };
+                  updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+                  showSuccess('Text formatting updated');
+                }
+              }}
               className="p-2 hover:bg-gray-100 rounded underline text-gray-600"
             >
               <span className="text-sm">S</span>

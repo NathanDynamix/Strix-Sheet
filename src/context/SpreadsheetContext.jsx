@@ -24,10 +24,26 @@ export function SpreadsheetProvider({ children }) {
       setLoading(true);
       setError(null);
       const response = await spreadsheetService.getSpreadsheets();
-      setSpreadsheets(response.data || []);
+      console.log('API Response:', response);
+      
+      // Handle different response structures
+      let spreadsheetsData = [];
+      if (Array.isArray(response)) {
+        spreadsheetsData = response;
+      } else if (response && Array.isArray(response.data)) {
+        spreadsheetsData = response.data;
+      } else if (response && Array.isArray(response.spreadsheets)) {
+        spreadsheetsData = response.spreadsheets;
+      } else {
+        console.warn('Unexpected response structure:', response);
+        spreadsheetsData = [];
+      }
+      
+      setSpreadsheets(spreadsheetsData);
     } catch (err) {
       console.error('Error loading spreadsheets:', err);
       setError('Failed to load spreadsheets');
+      setSpreadsheets([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -326,6 +342,7 @@ export function SpreadsheetProvider({ children }) {
     loading,
     error,
     createSpreadsheet,
+    loadSpreadsheets,
     loadSpreadsheet,
     updateSpreadsheet,
     deleteSpreadsheet,

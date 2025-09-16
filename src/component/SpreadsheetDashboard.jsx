@@ -24,7 +24,8 @@ const SpreadsheetDashboard = () => {
     loading, 
     error, 
     createSpreadsheet, 
-    deleteSpreadsheet 
+    deleteSpreadsheet,
+    loadSpreadsheets
   } = useSpreadsheet();
   const { showSuccess, showError } = useToast();
   
@@ -34,11 +35,41 @@ const SpreadsheetDashboard = () => {
   const [newSpreadsheetDescription, setNewSpreadsheetDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Load spreadsheets when component mounts
+  useEffect(() => {
+    if (currentUser) {
+      loadSpreadsheets();
+    }
+  }, [currentUser, loadSpreadsheets]);
+
+  // Debug spreadsheets data
+  useEffect(() => {
+    console.log('Spreadsheets data:', spreadsheets, 'Type:', typeof spreadsheets, 'Is Array:', Array.isArray(spreadsheets));
+    if (Array.isArray(spreadsheets) && spreadsheets.length > 0) {
+      console.log('First spreadsheet object:', spreadsheets[0]);
+      console.log('Spreadsheet keys:', Object.keys(spreadsheets[0] || {}));
+    }
+  }, [spreadsheets]);
+
   // Filter spreadsheets based on search term
-  const filteredSpreadsheets = spreadsheets.filter(spreadsheet =>
-    spreadsheet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    spreadsheet.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSpreadsheets = React.useMemo(() => {
+    // Ensure spreadsheets is an array
+    if (!Array.isArray(spreadsheets)) {
+      console.warn('Spreadsheets is not an array:', spreadsheets);
+      return [];
+    }
+    
+    return spreadsheets.filter(spreadsheet => {
+      // Check if spreadsheet exists and has required properties
+      if (!spreadsheet) return false;
+      
+      const title = spreadsheet.title || '';
+      const description = spreadsheet.description || '';
+      
+      return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             description.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [spreadsheets, searchTerm]);
 
   const handleCreateSpreadsheet = async (e) => {
     e.preventDefault();
@@ -85,6 +116,18 @@ const SpreadsheetDashboard = () => {
     showSuccess('You have been logged out successfully.');
     navigate('/');
   };
+
+  // Show loading state while data is being fetched
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your spreadsheets...</p>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -178,7 +221,7 @@ const SpreadsheetDashboard = () => {
                       <FileSpreadsheet className="w-8 h-8 text-green-600 mr-3" />
                       <div>
                         <h3 className="font-semibold text-gray-900 truncate">
-                          {spreadsheet.title}
+                          {spreadsheet.title || 'Untitled'}
                         </h3>
                         <p className="text-sm text-gray-500 truncate">
                           {spreadsheet.description || 'No description'}
@@ -233,7 +276,7 @@ const SpreadsheetDashboard = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteSpreadsheet(spreadsheet._id, spreadsheet.title);
+                          handleDeleteSpreadsheet(spreadsheet._id, spreadsheet.title || 'Untitled');
                         }}
                         className="p-1 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100"
                       >
