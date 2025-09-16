@@ -6,6 +6,8 @@ import React, {
   useEffect,
 } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useSpreadsheet } from '../context/SpreadsheetContext';
 import {
   AlignLeft,
   AlignCenter,
@@ -23,6 +25,7 @@ import {
   Trash2,
   DollarSign,
   FilterX,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   LineChart as RechartsLineChart,
@@ -41,6 +44,16 @@ import {
 } from "recharts";
 
 const GoogleSheetsClone = () => {
+  const { currentUser, logout } = useAuth();
+  const { 
+    currentSpreadsheet, 
+    updateCell, 
+    autoSave, 
+    getCurrentSheetData,
+    getCellData 
+  } = useSpreadsheet();
+  const navigate = useNavigate();
+
   // Initialize spreadsheet data for 40,000 cells (40 columns x 1000 rows)
   const initializeData = () => {
     const data = {};
@@ -64,8 +77,21 @@ const GoogleSheetsClone = () => {
     return result;
   };
 
+  // Get data from context or initialize
+  const getSheetData = () => {
+    if (currentSpreadsheet && currentSpreadsheet.sheets) {
+      const activeSheet = currentSpreadsheet.sheets.find(
+        sheet => sheet.id === currentSpreadsheet.activeSheetId
+      );
+      if (activeSheet && activeSheet.data) {
+        return Object.fromEntries(activeSheet.data);
+      }
+    }
+    return initializeData();
+  };
+
   const [sheets, setSheets] = useState([
-    { id: "sheet1", name: "Sheet1", data: initializeData() },
+    { id: "sheet1", name: "Sheet1", data: getSheetData() },
   ]);
   const [activeSheetId, setActiveSheetId] = useState("sheet1");
   const [selectedCell, setSelectedCell] = useState("A1");
@@ -98,12 +124,19 @@ const GoogleSheetsClone = () => {
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
 
-  const navigate = useNavigate();
   const cellInputRef = useRef(null);
   const formulaBarInputRef = useRef(null);
   const isNavigatingRef = useRef(false);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
   const data = activeSheet ? activeSheet.data : {};
+
+  // Update sheets when currentSpreadsheet changes
+  useEffect(() => {
+    if (currentSpreadsheet && currentSpreadsheet.sheets) {
+      setSheets(currentSpreadsheet.sheets);
+      setActiveSheetId(currentSpreadsheet.activeSheetId);
+    }
+  }, [currentSpreadsheet]);
 
   // Performance optimizations - only render visible rows
   const memoizedCellData = useMemo(() => {
@@ -177,11 +210,13 @@ const GoogleSheetsClone = () => {
   );
 
   // Logout handler
-  const handleLogout = () => {
-    // Clear local storage
-    localStorage.clear();
-    // Redirect to login page
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   // Close filter menu when clicking outside
@@ -587,7 +622,7 @@ const GoogleSheetsClone = () => {
     setHistoryIndex(newHistory.length - 1);
   };
 
-  const updateCell = (cellId, value) => {
+  const updateCellLocal = async (cellId, value) => {
     saveHistory();
 
     const newSheets = sheets.map((sheet) => {
@@ -602,11 +637,13 @@ const GoogleSheetsClone = () => {
           ? evaluateFormula(value)
           : value;
 
-        newData[cellId] = {
+        const cellData = {
           ...newData[cellId],
           formula: value,
           value: evaluatedValue,
         };
+
+        newData[cellId] = cellData;
 
         // Recalculate dependent cells
         Object.keys(newData).forEach((id) => {
@@ -625,6 +662,25 @@ const GoogleSheetsClone = () => {
     });
 
     setSheets(newSheets);
+
+    // Update backend if we have a current spreadsheet
+    if (currentSpreadsheet) {
+      try {
+        const cellData = {
+          value: value.startsWith("=") ? evaluateFormula(value) : value,
+          formula: value,
+          style: newSheets.find(s => s.id === activeSheetId)?.data[cellId]?.style || {}
+        };
+        
+        await updateCell(activeSheetId, cellId, cellData);
+        
+        // Auto-save the entire sheet data
+        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
+        await autoSave(activeSheetId, sheetData);
+      } catch (error) {
+        console.error('Error updating cell in backend:', error);
+      }
+    }
   };
 
   const undo = () => {
@@ -661,13 +717,13 @@ const GoogleSheetsClone = () => {
 
   const pasteCell = () => {
     if (clipboard && selectedCell) {
-      updateCell(selectedCell, clipboard.formula || clipboard.value);
+      updateCellLocal(selectedCell, clipboard.formula || clipboard.value);
     }
   };
 
   const deleteCell = () => {
     if (selectedCell) {
-      updateCell(selectedCell, "");
+      updateCellLocal(selectedCell, "");
     }
   };
 
@@ -725,7 +781,7 @@ const GoogleSheetsClone = () => {
     
     // If we're currently editing a different cell, save it first
     if (isEditing && selectedCell && selectedCell !== cellId) {
-      updateCell(selectedCell, cellEditValue);
+      updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
     
@@ -757,7 +813,7 @@ const GoogleSheetsClone = () => {
   const handleCellDoubleClick = (cellId) => {
     // If we're currently editing a different cell, save it first
     if (isEditing && selectedCell && selectedCell !== cellId) {
-      updateCell(selectedCell, cellEditValue);
+      updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
     
@@ -784,7 +840,7 @@ const GoogleSheetsClone = () => {
   const handleFormulaBarChange = (value) => {
     setFormulaBarValue(value);
     if (selectedCell) {
-      updateCell(selectedCell, value);
+      updateCellLocal(selectedCell, value);
     }
   };
 
@@ -829,7 +885,7 @@ const GoogleSheetsClone = () => {
       const isCellInput = e.target.tagName === 'INPUT' && e.target.className.includes('border-none');
       
       if (!isInsideSpreadsheet && isEditing && selectedCell && !isCellInput) {
-        updateCell(selectedCell, cellEditValue);
+        updateCellLocal(selectedCell, cellEditValue);
         setIsEditing(false);
       }
     };
@@ -1524,6 +1580,13 @@ const GoogleSheetsClone = () => {
                <BarChart size={14} />
                <span>Dashboard</span>
              </button>
+             <button 
+               onClick={() => navigate('/spreadsheet-dashboard')}
+               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
+             >
+               <FileSpreadsheet size={14} />
+               <span>My Sheets</span>
+             </button>
             <button 
               onClick={() => navigate('/create-chart')}
               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
@@ -1588,7 +1651,7 @@ const GoogleSheetsClone = () => {
                   onChange={(e) => setFormulaBarValue(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && selectedCell) {
-                      updateCell(selectedCell, formulaBarValue);
+                      updateCellLocal(selectedCell, formulaBarValue);
                       // Move to next row
                       const match = selectedCell.match(/([A-Z]+)(\d+)/);
                       if (match) {
@@ -1597,7 +1660,7 @@ const GoogleSheetsClone = () => {
                       }
                     } else if (e.key === "Tab" && selectedCell) {
                       e.preventDefault();
-                      updateCell(selectedCell, formulaBarValue);
+                      updateCellLocal(selectedCell, formulaBarValue);
                       // Move to next column
                       const match = selectedCell.match(/([A-Z]+)(\d+)/);
                       if (match) {
@@ -1611,7 +1674,7 @@ const GoogleSheetsClone = () => {
                   onBlur={() => {
                     setTimeout(() => {
                       if (selectedCell) {
-                        updateCell(selectedCell, formulaBarValue);
+                        updateCellLocal(selectedCell, formulaBarValue);
                       }
                       setIsEditing(false);
                     }, 150);
@@ -1728,7 +1791,7 @@ const GoogleSheetsClone = () => {
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    updateCell(selectedCell, cellEditValue);
+                                    updateCellLocal(selectedCell, cellEditValue);
                                     setIsEditing(false);
                                     // Move to next row
                                     const match = selectedCell.match(/([A-Z]+)(\d+)/);
@@ -1762,7 +1825,7 @@ const GoogleSheetsClone = () => {
                                   
                                   if (!isMovingToAnotherCell) {
                                     // Save immediately without delay to prevent focus issues
-                                    updateCell(selectedCell, cellEditValue);
+                                    updateCellLocal(selectedCell, cellEditValue);
                                     setIsEditing(false);
                                   }
                                 }}

@@ -1,14 +1,19 @@
 import mongoose from "mongoose";
-import { DATABASE_NAME } from "../constant.js";
 
 const connectDB = async () => {
   try {
-    const connectionInstance = await mongoose.connect(
-      `mongodb+srv://ay614838:YADAVboy321$@cluster0.gh2alov.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
-    );
+    const mongoURI = process.env.MONGODB_URI;
+    const databaseName = process.env.DATABASE_NAME || "Spreadsheet";
+    
+    if (!mongoURI) {
+      throw new Error("MONGODB_URI environment variable is not defined");
+    }
+
+    const connectionInstance = await mongoose.connect(mongoURI);
     console.log(
       `\n MongoDB connected !! DB HOST: ${connectionInstance.connection.host}`
     );
+    console.log(`Database Name: ${databaseName}`);
   } catch (error) {
     console.log("MONGODB connection FAILED ", error);
     process.exit(1);

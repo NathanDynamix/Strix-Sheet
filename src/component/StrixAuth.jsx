@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { auth, provider, signInWithPopup } from "../firebase";
+import { auth, provider, signInWithPopup } from "../Firebase";
+import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import {
   Mail,
@@ -23,6 +24,8 @@ const StrixAuth = () => {
   const [nameerror, setNameerror] = useState("")
   const [companyerror, setCompanyerror]= useState("")
   const [isChecked, setIsChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,6 +34,7 @@ const StrixAuth = () => {
   });
 
   const navigate = useNavigate();
+  const { signup, login } = useAuth();
 
   const handleInputChange = (e) => {
     setFormData({
@@ -43,6 +47,8 @@ const StrixAuth = () => {
 
   const handleGoogleAuth = async() => {
     try {
+      setLoading(true);
+      setError("");
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       console.log("User Info:", user);
@@ -54,13 +60,16 @@ const StrixAuth = () => {
 
     } catch (error) {
       console.error("Google sign-in error:", error);
+      setError("Failed to sign in with Google. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-   
+    setLoading(true);
+    setError("");
     setEmailerror("");
     setPassworderror("");
 
@@ -70,42 +79,48 @@ const StrixAuth = () => {
     if (!email && !password) {
       setEmailerror("*Please Enter Email");
       setPassworderror("*Please Enter Password");
+      setLoading(false);
       return;
     }
 
     if (!email) {
       setEmailerror("*Please Enter Email");
+      setLoading(false);
       return;
     }
 
     if (!password) {
       setPassworderror("*Please Enter Password");
+      setLoading(false);
       return;
     }
 
-
-    const savedData = JSON.parse(localStorage.getItem("signupData"));
-
-    if (!savedData) {
-      alert("No account found. Please sign up first.");
-      return;
-    }
-
-    
-    if (email === savedData.email && password === savedData.password) {
+    try {
+      await login(email, password);
       alert("Login successful!");
-      navigate("/integration")
-     
-    } else {
-      alert("Invalid email or password.");
+      navigate("/integration");
+    } catch (error) {
+      console.error("Login error:", error);
+      if (error.code === 'auth/user-not-found') {
+        setError("No account found with this email. Please sign up first.");
+      } else if (error.code === 'auth/wrong-password') {
+        setError("Incorrect password. Please try again.");
+      } else if (error.code === 'auth/invalid-email') {
+        setError("Invalid email address.");
+      } else {
+        setError("Failed to sign in. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
   
   
   
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true);
+    setError("");
     setEmailerror("");
     setPassworderror("");
     setNameerror("");
@@ -129,28 +144,37 @@ const StrixAuth = () => {
       hasError = true;
     }
 
-    if (hasError) return;
+    if (hasError) {
+      setLoading(false);
+      return;
+    }
 
-    const userData = {
-      view: currentView,
-      type: accountType,
-      email,
-      password,
-      name,
-      company,
-    };
+    try {
+      await signup(email, password, name);
+      alert("Account Created Successfully!");
+      
+      setFormData({
+        email: "",
+        password: "",
+        name: "",
+        company: "",
+      });
 
-    localStorage.setItem("signupData", JSON.stringify(userData));
-    alert("Account Created Successfully!");
-
-    setFormData({
-      email: "",
-      password: "",
-      name: "",
-      company: "",
-    });
-
-    setCurrentView(currentView === "login" ? "signup" : "login");
+      setCurrentView("login");
+    } catch (error) {
+      console.error("Signup error:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        setError("An account with this email already exists. Please sign in instead.");
+      } else if (error.code === 'auth/weak-password') {
+        setError("Password should be at least 6 characters long.");
+      } else if (error.code === 'auth/invalid-email') {
+        setError("Invalid email address.");
+      } else {
+        setError("Failed to create account. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
   
   
@@ -172,6 +196,11 @@ const StrixAuth = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 backdrop-blur-sm bg-opacity-90">
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
           {currentView === "login" ? (
             <>
               <div className="space-y-6">
@@ -298,9 +327,10 @@ const StrixAuth = () => {
                   <button
                     type="submit"
                     onClick={handleSubmit}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Sign In
+                    {loading ? "Signing In..." : "Sign In"}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </button>
                 </div>
@@ -503,15 +533,14 @@ const StrixAuth = () => {
                   <button
                     type="submit"
                     onClick={handleCreateSubmit}
-                    disabled={!isChecked}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center"
+                    disabled={!isChecked || loading}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create Account
+                    {loading ? "Creating Account..." : "Create Account"}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </button>
                 </div>
               </div>
-              ;
             </>
           )}
 
@@ -529,7 +558,8 @@ const StrixAuth = () => {
 
             <button
               onClick={handleGoogleAuth}
-              className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 transform hover:scale-[1.02]"
+              disabled={loading}
+              className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
