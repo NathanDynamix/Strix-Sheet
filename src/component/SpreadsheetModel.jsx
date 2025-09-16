@@ -103,9 +103,6 @@ const GoogleSheetsClone = () => {
   const [isProcessingInput, setIsProcessingInput] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFunctionMenu, setShowFunctionMenu] = useState(false);
-  const [clipboard, setClipboard] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [showChartModal, setShowChartModal] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [chartType, setChartType] = useState("line");
@@ -119,6 +116,22 @@ const GoogleSheetsClone = () => {
   const [filterValue, setFilterValue] = useState("");
   const [activeFilters, setActiveFilters] = useState({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  
+  // Google Sheets-like filter states
+  const [columnFilters, setColumnFilters] = useState({});
+  const [filterDropdowns, setFilterDropdowns] = useState({});
+  const [showFilterDropdown, setShowFilterDropdown] = useState(null);
+  const [filterOptions, setFilterOptions] = useState({});
+  
+  // Cell resizing states
+  const [columnWidths, setColumnWidths] = useState({});
+  const [rowHeights, setRowHeights] = useState({});
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeType, setResizeType] = useState(null); // 'column' or 'row'
+  const [resizeTarget, setResizeTarget] = useState(null);
+  const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
+  const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 });
+  const [showResizeIndicator, setShowResizeIndicator] = useState(false);
   const [visibleRows, setVisibleRows] = useState(100); // Virtualization
   const [scrollTop, setScrollTop] = useState(0);
   const [showFormulaHelper, setShowFormulaHelper] = useState(false);
@@ -134,6 +147,14 @@ const GoogleSheetsClone = () => {
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showDataMenu, setShowDataMenu] = useState(false);
+  
+  // Clipboard functionality
+  const [clipboard, setClipboard] = useState(null);
+  const [clipboardType, setClipboardType] = useState(null); // 'copy' or 'cut'
+  
+  // Undo/Redo functionality
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   const cellInputRef = useRef(null);
   const formulaBarInputRef = useRef(null);
@@ -181,9 +202,6 @@ const GoogleSheetsClone = () => {
     }));
   }, []);
 
-  const clearAllFilters = useCallback(() => {
-    setActiveFilters({});
-  }, []);
 
   const isRowVisible = useCallback(
     (rowIndex) => {
@@ -397,6 +415,114 @@ const GoogleSheetsClone = () => {
     showSuccess('Filter applied');
   };
 
+  // Google Sheets-like filter functions
+  const toggleColumnFilter = (column) => {
+    if (columnFilters[column]) {
+      // Remove filter
+      const newFilters = { ...columnFilters };
+      delete newFilters[column];
+      setColumnFilters(newFilters);
+      showSuccess(`Filter removed from column ${column}`);
+    } else {
+      // Add filter
+      setColumnFilters({ ...columnFilters, [column]: { values: [], type: 'include' } });
+      setShowFilterDropdown(column);
+      showSuccess(`Filter added to column ${column}`);
+    }
+  };
+
+  const updateColumnFilter = (column, values, type = 'include') => {
+    setColumnFilters({
+      ...columnFilters,
+      [column]: { values, type }
+    });
+    setShowFilterDropdown(null);
+    showSuccess(`Filter updated for column ${column}`);
+  };
+
+  const clearAllFilters = () => {
+    setColumnFilters({});
+    setShowFilterDropdown(null);
+    showSuccess('All filters cleared');
+  };
+
+  const getColumnFilterOptions = (column) => {
+    const colNum = getColumnNumber(column);
+    const values = new Set();
+    
+    for (let row = 1; row <= 1000; row++) {
+      const cellId = getColumnName(colNum) + row;
+      const cellData = data[cellId];
+      if (cellData && cellData.value) {
+        values.add(cellData.value.toString());
+      }
+    }
+    
+    return Array.from(values).sort();
+  };
+
+  // Cell resizing functions
+  const getColumnWidth = (column) => {
+    return columnWidths[column] || 100; // Default width
+  };
+
+  const getRowHeight = (row) => {
+    return rowHeights[row] || 24; // Default height
+  };
+
+  const handleColumnResize = (column, newWidth) => {
+    setColumnWidths({
+      ...columnWidths,
+      [column]: Math.max(50, newWidth) // Minimum width of 50px
+    });
+  };
+
+  const handleRowResize = (row, newHeight) => {
+    setRowHeights({
+      ...rowHeights,
+      [row]: Math.max(20, newHeight) // Minimum height of 20px
+    });
+  };
+
+  const startResize = (type, target, event) => {
+    setIsResizing(true);
+    setResizeType(type);
+    setResizeTarget(target);
+    setShowResizeIndicator(true);
+    
+    // Capture initial position and size
+    setResizeStartPos({ x: event.clientX, y: event.clientY });
+    
+    if (type === 'column') {
+      setResizeStartSize({ width: getColumnWidth(target), height: 0 });
+    } else if (type === 'row') {
+      setResizeStartSize({ width: 0, height: getRowHeight(target) });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing || !resizeTarget) return;
+    
+    if (resizeType === 'column') {
+      // Calculate delta from start position
+      const deltaX = e.clientX - resizeStartPos.x;
+      const newWidth = resizeStartSize.width + deltaX;
+      handleColumnResize(resizeTarget, Math.max(50, newWidth));
+    } else if (resizeType === 'row') {
+      // Calculate delta from start position
+      const deltaY = e.clientY - resizeStartPos.y;
+      const newHeight = resizeStartSize.height + deltaY;
+      handleRowResize(resizeTarget, Math.max(20, newHeight));
+    }
+  };
+
+  const stopResize = () => {
+    setIsResizing(false);
+    setResizeType(null);
+    setResizeTarget(null);
+    setShowResizeIndicator(false);
+  };
+
   // Helper function to convert data to CSV
   const convertToCSV = () => {
     const rows = [];
@@ -494,6 +620,19 @@ const GoogleSheetsClone = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [selectedCell, clipboard, historyIndex, history]);
+
+  // Mouse events for resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', stopResize);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', stopResize);
+      };
+    }
+  }, [isResizing, resizeType, resizeTarget]);
 
   // Enhanced spreadsheet functions with comprehensive banking formulas
   const functions = {
@@ -1304,8 +1443,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('file')}
                 className={`text-md px-2 py-1 rounded ${showFileMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                File
-              </button>
+              File
+            </button>
               {showFileMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button onClick={handleNewSpreadsheet} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -1326,8 +1465,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('edit')}
                 className={`text-md px-2 py-1 rounded ${showEditMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                Edit
-              </button>
+              Edit
+            </button>
               {showEditMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button onClick={handleUndo} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -1355,8 +1494,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('view')}
                 className={`text-md px-2 py-1 rounded ${showViewMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                View
-              </button>
+              View
+            </button>
               {showViewMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -1377,8 +1516,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('insert')}
                 className={`text-md px-2 py-1 rounded ${showInsertMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                Insert
-              </button>
+              Insert
+            </button>
               {showInsertMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button onClick={handleInsertRow} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -1399,8 +1538,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('format')}
                 className={`text-md px-2 py-1 rounded ${showFormatMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                Format
-              </button>
+              Format
+            </button>
               {showFormatMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button onClick={handleBold} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -1424,8 +1563,8 @@ const GoogleSheetsClone = () => {
                 onClick={() => handleMenuClick('data')}
                 className={`text-md px-2 py-1 rounded ${showDataMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
               >
-                Data
-              </button>
+              Data
+            </button>
               {showDataMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button onClick={handleSortAscending} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -2110,6 +2249,16 @@ const GoogleSheetsClone = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
+        {/* Resize Indicator */}
+        {showResizeIndicator && isResizing && (
+          <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded shadow-lg z-50 text-sm">
+            {resizeType === 'column' 
+              ? `Width: ${Math.round(getColumnWidth(resizeTarget))}px`
+              : `Height: ${Math.round(getRowHeight(resizeTarget))}px`
+            }
+          </div>
+        )}
+        
         {/* Google Sheets Style Spreadsheet */}
         <div className="flex-1 overflow-auto bg-white" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <div className="relative">
@@ -2120,18 +2269,109 @@ const GoogleSheetsClone = () => {
                    {Array.from({ length: 40 }, (_, i) => {
                      const columnName = getColumnName(i + 1);
                      const hasFilter = activeFilters[columnName];
+                     const hasColumnFilter = columnFilters[columnName];
+                     const columnWidth = getColumnWidth(columnName);
+                     
                      return (
                        <th
                          key={i}
-                         className="min-w-20 h-8 border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100"
-                         style={{ minWidth: '80px' }}
+                         className="border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100 group"
+                         style={{ 
+                           minWidth: `${columnWidth}px`,
+                           width: `${columnWidth}px`
+                         }}
                        >
-                         <div className="flex items-center justify-center">
+                         <div className="flex items-center justify-between h-full px-1">
+                           <div className="flex items-center justify-center flex-1">
                            {columnName}
                            {hasFilter && (
                              <Filter size={12} className="ml-1 text-blue-600" />
                            )}
+                             {hasColumnFilter && (
+                               <div className="ml-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                           )}
                          </div>
+                           
+                           {/* Filter button */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               toggleColumnFilter(columnName);
+                             }}
+                             className="opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity"
+                             title="Filter"
+                           >
+                             <Filter size={12} className="text-gray-600" />
+                           </button>
+                           
+                           {/* Resize handle */}
+                           <div
+                             className="absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                             onMouseDown={(e) => {
+                               e.preventDefault();
+                               startResize('column', columnName, e);
+                             }}
+                           />
+                         </div>
+                         
+                         {/* Filter dropdown */}
+                         {showFilterDropdown === columnName && (
+                           <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+                             <div className="p-3">
+                               <div className="flex items-center justify-between mb-2">
+                                 <h4 className="font-medium text-sm">Filter by {columnName}</h4>
+                                 <button
+                                   onClick={() => setShowFilterDropdown(null)}
+                                   className="text-gray-400 hover:text-gray-600"
+                                 >
+                                   <X size={14} />
+                                 </button>
+                               </div>
+                               
+                               <div className="space-y-2">
+                                 <div className="text-xs text-gray-600 mb-2">
+                                   Show items where the value is:
+                                 </div>
+                                 
+                                 {getColumnFilterOptions(columnName).map((value, index) => (
+                                   <label key={index} className="flex items-center space-x-2 text-sm">
+                                     <input
+                                       type="checkbox"
+                                       checked={columnFilters[columnName]?.values?.includes(value) || false}
+                                       onChange={(e) => {
+                                         const currentValues = columnFilters[columnName]?.values || [];
+                                         const newValues = e.target.checked
+                                           ? [...currentValues, value]
+                                           : currentValues.filter(v => v !== value);
+                                         updateColumnFilter(columnName, newValues);
+                                       }}
+                                       className="rounded"
+                                     />
+                                     <span className="truncate">{value}</span>
+                                   </label>
+                                 ))}
+                                 
+                                 <div className="border-t pt-2 mt-2">
+                                   <button
+                                     onClick={() => {
+                                       const allValues = getColumnFilterOptions(columnName);
+                                       updateColumnFilter(columnName, allValues);
+                                     }}
+                                     className="text-xs text-blue-600 hover:text-blue-800"
+                                   >
+                                     Select all
+                                   </button>
+                                   <button
+                                     onClick={() => updateColumnFilter(columnName, [])}
+                                     className="text-xs text-blue-600 hover:text-blue-800 ml-4"
+                                   >
+                                     Clear all
+                                   </button>
+                                 </div>
+                               </div>
+                             </div>
+                           </div>
+                         )}
                        </th>
                      );
                    })}
@@ -2143,9 +2383,20 @@ const GoogleSheetsClone = () => {
                    if (!isRowVisible(rowIndex)) return null;
 
                    return (
-                     <tr key={rowIndex} style={{ height: "24px" }}>
-                       <td className="w-16 h-6 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10" style={{ minWidth: '64px', maxWidth: '64px' }}>
+                     <tr key={rowIndex} style={{ height: `${getRowHeight(rowIndex + 1)}px` }}>
+                       <td className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10 group" style={{ minWidth: '64px', maxWidth: '64px' }}>
+                         <div className="flex items-center justify-center h-full">
                          {rowIndex + 1}
+                         </div>
+                         
+                         {/* Row resize handle */}
+                         <div
+                           className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                           onMouseDown={(e) => {
+                             e.preventDefault();
+                             startResize('row', rowIndex + 1, e);
+                           }}
+                         />
                        </td>
                       {Array.from({ length: 40 }, (_, colIndex) => {
                         const cellId =
@@ -2153,14 +2404,23 @@ const GoogleSheetsClone = () => {
                         const cellData = data[cellId];
                         const isSelected = selectedCell === cellId;
 
+                        const columnName = getColumnName(colIndex + 1);
+                        const columnWidth = getColumnWidth(columnName);
+                        const rowHeight = getRowHeight(rowIndex + 1);
+
                         return (
                           <td
                             key={cellId}
-                            className={`min-w-20 h-6 border border-gray-200 cursor-cell relative bg-white ${
+                            className={`border border-gray-200 cursor-cell relative bg-white ${
                               isSelected
                                 ? "ring-2 ring-blue-500 bg-blue-50"
                                 : "hover:bg-gray-50"
                             }`}
+                            style={{
+                              width: `${columnWidth}px`,
+                              minWidth: `${columnWidth}px`,
+                              height: `${rowHeight}px`
+                            }}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
