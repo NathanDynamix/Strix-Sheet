@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css'; // Contains Tailwind directives
 import 'bootstrap/dist/css/bootstrap.min.css'; // Bootstrap CSS
 import { SpreadsheetDataProvider } from './context/SpreadsheetDataContext';
+import { ToastProvider } from './context/ToastContext';
 import App from './App.jsx';
 import { BrowserRouter } from 'react-router-dom';
 
@@ -16,9 +17,11 @@ createRoot(document.getElementById('root')).render(
         v7_prependBasename: true
       }}
     >
-      <SpreadsheetDataProvider>
-        <App />
-      </SpreadsheetDataProvider>
+      <ToastProvider>
+        <SpreadsheetDataProvider>
+          <App />
+        </SpreadsheetDataProvider>
+      </ToastProvider>
     </BrowserRouter>
   </StrictMode>
 );

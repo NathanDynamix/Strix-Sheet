@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -7,13 +7,22 @@ const ProtectedRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
   const { showError } = useToast();
+  const hasShownError = useRef(false);
 
   // Show error message after component mounts, not during render
   useEffect(() => {
-    if (!loading && !currentUser) {
+    if (!loading && !currentUser && !hasShownError.current) {
+      hasShownError.current = true;
       showError('Please log in to access this page');
     }
   }, [loading, currentUser, showError]);
+
+  // Reset the error flag when user changes
+  useEffect(() => {
+    if (currentUser) {
+      hasShownError.current = false;
+    }
+  }, [currentUser]);
 
   // Show loading spinner while checking authentication
   if (loading) {

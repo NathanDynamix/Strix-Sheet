@@ -15,12 +15,17 @@ export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((message, type = 'info', duration = 5000) => {
-    const id = Date.now() + Math.random();
-    const newToast = { id, message, type, duration };
-    
-    setToasts(prev => [...prev, newToast]);
-    
-    return id;
+    // Check if a toast with the same message already exists
+    setToasts(prev => {
+      const existingToast = prev.find(toast => toast.message === message && toast.type === type);
+      if (existingToast) {
+        return prev; // Don't add duplicate
+      }
+      
+      const id = Date.now() + Math.random();
+      const newToast = { id, message, type, duration };
+      return [...prev, newToast];
+    });
   }, []);
 
   const showSuccess = useCallback((message, duration = 5000) => {
