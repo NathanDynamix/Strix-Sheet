@@ -2528,7 +2528,7 @@ const GoogleSheetsClone = () => {
         </div>
         
         {/* Sheet Tabs - Fixed at bottom */}
-        <div className="bg-gray-50 border-t px-4 py-2 flex-shrink-0">
+        <div className="bg-gray-50 border-t px-4 py-2 w-full z-50 fixed bottom-0 right-0">
           <div className="flex items-center space-x-2">
             {sheets.map((sheet) => (
               <button
