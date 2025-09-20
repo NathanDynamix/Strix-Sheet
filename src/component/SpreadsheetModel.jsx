@@ -1163,35 +1163,53 @@ const GoogleSheetsClone = () => {
     };
   }, [hasUnsavedChanges, isSaving]);
 
-  // Close filter menu, zoom dropdown, and font dropdowns when clicking outside
+  // Close all dropdowns and modals when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Close filter menu
       if (filterMenuOpen && !event.target.closest(".filter-menu")) {
         setFilterMenuOpen(false);
       }
+      // Close zoom dropdown
       if (showZoomDropdown && !event.target.closest(".zoom-dropdown")) {
         setShowZoomDropdown(false);
       }
+      // Close font dropdown
       if (showFontDropdown && !event.target.closest(".font-dropdown")) {
         setShowFontDropdown(false);
       }
+      // Close font size dropdown
       if (
         showFontSizeDropdown &&
         !event.target.closest(".font-size-dropdown")
       ) {
         setShowFontSizeDropdown(false);
       }
+      // Close number format dropdown
       if (
         showNumberFormatDropdown &&
         !event.target.closest(".number-format-dropdown")
       ) {
         setShowNumberFormatDropdown(false);
       }
+      // Close text rotation dropdown
       if (
         showTextRotationDropdown &&
         !event.target.closest(".text-rotation-dropdown")
       ) {
         setShowTextRotationDropdown(false);
+      }
+      // Close color picker
+      if (showColorPicker && !event.target.closest(".color-picker-container")) {
+        setShowColorPicker(false);
+      }
+      // Close function menu
+      if (showFunctionMenu && !event.target.closest(".function-menu-container")) {
+        setShowFunctionMenu(false);
+      }
+      // Close filter dropdowns in column headers
+      if (showFilterDropdown && !event.target.closest(".filter-dropdown-container")) {
+        setShowFilterDropdown(null);
       }
     };
 
@@ -1206,6 +1224,9 @@ const GoogleSheetsClone = () => {
     showFontSizeDropdown,
     showNumberFormatDropdown,
     showTextRotationDropdown,
+    showColorPicker,
+    showFunctionMenu,
+    showFilterDropdown,
   ]);
 
   // Keyboard shortcuts
@@ -1291,8 +1312,8 @@ const GoogleSheetsClone = () => {
         }
       }
 
-      // Plus/Minus keys for zoom (without Ctrl/Cmd)
-      if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Plus/Minus keys for zoom (only with Ctrl/Cmd)
+      if (event.ctrlKey || event.metaKey) {
         if (event.key === "+" || event.key === "=") {
           event.preventDefault();
           handleZoomIn();
@@ -1327,12 +1348,17 @@ const GoogleSheetsClone = () => {
     // Math functions
     SUM: (range) => {
       try {
+        console.log("SUM function called with range:", range);
         const values = getRangeValues(range);
+        console.log("Range values:", values);
         const numValues = values
           .filter((v) => !isNaN(parseFloat(v)))
           .map((v) => parseFloat(v));
-        return numValues.reduce((sum, val) => sum + val, 0);
+        const result = numValues.reduce((sum, val) => sum + val, 0);
+        console.log("SUM result:", result);
+        return result;
       } catch (e) {
+        console.error("SUM error:", e);
         return "#ERROR";
       }
     },
@@ -1626,6 +1652,7 @@ const GoogleSheetsClone = () => {
   const evaluateFormula = (formula) => {
     if (!formula || !formula.startsWith("=")) return formula;
 
+    console.log("Evaluating formula:", formula);
     try {
       let expression = formula.slice(1).trim();
 
@@ -2951,7 +2978,7 @@ const GoogleSheetsClone = () => {
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
             <div className="flex flex-wrap items-start space-x-2 justify-start">
-              <div className="relative">
+              <div className="relative function-menu-container">
             <button
               onClick={() => setShowFunctionMenu(!showFunctionMenu)}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
@@ -3002,7 +3029,7 @@ const GoogleSheetsClone = () => {
               </div>
             )}
           </div>
-              <div className="relative">
+              <div className="relative color-picker-container">
             <button
               onClick={() => setShowColorPicker(!showColorPicker)}
               className="p-2 hover:bg-gray-100 rounded"
@@ -3079,7 +3106,7 @@ const GoogleSheetsClone = () => {
           </button>
 
           {/* Filter Button */}
-              <div className="relative">
+              <div className="relative filter-menu-container">
             <button
               onClick={() => setFilterMenuOpen(!filterMenuOpen)}
               className={`p-2 rounded flex items-center ${
@@ -3248,90 +3275,79 @@ const GoogleSheetsClone = () => {
       </div>
 
       {/* Google Sheets Style Formula Bar */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 bg-white px-2 py-1 border border-gray-300 rounded min-w-12 text-center">
+      <div className="bg-white border-b border-gray-300 flex-shrink-0">
+        <div className="flex items-center h-10">
+          {/* Cell reference */}
+          <div className="flex items-center border-r border-gray-300 bg-gray-50">
+            <span className="text-sm font-medium text-gray-700 px-3 py-2 min-w-16 text-center border-r border-gray-300">
               {selectedCell}
             </span>
             <button
               onClick={() => setShowFormulaHelper(!showFormulaHelper)}
-              className="p-1 hover:bg-gray-200 rounded text-gray-600"
+              className="p-2 hover:bg-gray-200 text-gray-600 border-r border-gray-300"
+              title="Functions"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </button>
           </div>
-          <div className="flex-1">
+          
+          {/* Formula input area */}
+          <div className="flex-1 flex items-center">
             <div 
-              className="flex items-center border border-gray-300 rounded bg-white cursor-text"
+              className="flex-1 flex items-center border-l border-gray-300 bg-white cursor-text h-full"
               onClick={() => {
                 setTimeout(() => {
                   if (formulaBarInputRef.current) {
                     formulaBarInputRef.current.focus();
-                    // Don't select all text - just position cursor at end for editing
                     const length = formulaBarInputRef.current.value.length;
-                    formulaBarInputRef.current.setSelectionRange(
-                      length,
-                      length
-                    );
+                    formulaBarInputRef.current.setSelectionRange(length, length);
                   }
                 }, 0);
               }}
             >
-                <input
-                  ref={formulaBarInputRef}
-                  type="text"
-                  value={formulaBarValue}
-                  onChange={(e) => setFormulaBarValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && selectedCell) {
-                      updateCellLocal(selectedCell, formulaBarValue);
-                      // Move to next row
-                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                      if (match) {
-                        const nextCell = match[1] + (parseInt(match[2]) + 1);
-                        handleCellClick(nextCell);
-                      }
-                    } else if (e.key === "Tab" && selectedCell) {
-                      e.preventDefault();
-                      updateCellLocal(selectedCell, formulaBarValue);
-                      // Move to next column
-                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                      if (match) {
-                        const colNum = getColumnNumber(match[1]);
-                        const nextCell = getColumnName(colNum + 1) + match[2];
-                        handleCellClick(nextCell);
-                      }
+              <input
+                ref={formulaBarInputRef}
+                type="text"
+                value={formulaBarValue}
+                onChange={(e) => setFormulaBarValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && selectedCell) {
+                    console.log("Enter pressed, updating cell with:", formulaBarValue);
+                    updateCellLocal(selectedCell, formulaBarValue);
+                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                    if (match) {
+                      const nextCell = match[1] + (parseInt(match[2]) + 1);
+                      handleCellClick(nextCell);
                     }
-                  }}
-                  onFocus={() => setIsEditing(true)}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (selectedCell) {
-                        updateCellLocal(selectedCell, formulaBarValue);
-                      }
-                      setIsEditing(false);
-                    }, 150);
-                  }}
-                  onMouseUp={(e) => {
-                    // Allow normal text selection behavior
-                    e.stopPropagation();
-                  }}
-                  className="flex-1 px-3 py-1 focus:outline-none"
-                  placeholder="Enter value or formula (start with =)"
-                  autoComplete="off"
-                />
-              <button className="px-2 py-1 text-gray-400 hover:text-gray-600 border-l border-gray-300">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H5V6h14v12z" />
-                </svg>
-              </button>
+                  } else if (e.key === "Tab" && selectedCell) {
+                    e.preventDefault();
+                    console.log("Tab pressed, updating cell with:", formulaBarValue);
+                    updateCellLocal(selectedCell, formulaBarValue);
+                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                    if (match) {
+                      const colNum = getColumnNumber(match[1]);
+                      const nextCell = getColumnName(colNum + 1) + match[2];
+                      handleCellClick(nextCell);
+                    }
+                  }
+                }}
+                onFocus={() => setIsEditing(true)}
+                onBlur={() => {
+                  setTimeout(() => {
+                    if (selectedCell) {
+                      console.log("Formula bar blur, updating cell with:", formulaBarValue);
+                      updateCellLocal(selectedCell, formulaBarValue);
+                    }
+                    setIsEditing(false);
+                  }, 150);
+                }}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="flex-1 px-3 py-2 focus:outline-none text-sm h-full border-none"
+                placeholder="Enter value or formula (start with =)"
+                autoComplete="off"
+              />
             </div>
           </div>
         </div>
@@ -3450,7 +3466,7 @@ const GoogleSheetsClone = () => {
                          
                         {/* Enhanced Filter dropdown */}
                          {showFilterDropdown === columnName && (
-                          <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
+                          <div className="filter-dropdown-container absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
                              <div className="p-3">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-medium text-sm">
