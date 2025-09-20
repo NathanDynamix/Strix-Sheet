@@ -21,6 +21,7 @@ import {
   Palette,
   Calculator,
   ChevronDown,
+  ChevronRight,
   Undo,
   Redo,
   Filter,
@@ -108,6 +109,11 @@ const GoogleSheetsClone = () => {
   const [isProcessingInput, setIsProcessingInput] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFunctionMenu, setShowFunctionMenu] = useState(false);
+  const [showFormulaMenu, setShowFormulaMenu] = useState(false);
+  const [formulaSearch, setFormulaSearch] = useState("");
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
   const [showChartModal, setShowChartModal] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [chartType, setChartType] = useState("line");
@@ -169,7 +175,6 @@ const GoogleSheetsClone = () => {
   const [visibleRows, setVisibleRows] = useState(100); // Virtualization
   const [scrollTop, setScrollTop] = useState(0);
   const [showFormulaHelper, setShowFormulaHelper] = useState(false);
-  const [formulaSearch, setFormulaSearch] = useState("");
   const [showFormulaPrompt, setShowFormulaPrompt] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
 
@@ -1207,6 +1212,10 @@ const GoogleSheetsClone = () => {
       if (showFunctionMenu && !event.target.closest(".function-menu-container")) {
         setShowFunctionMenu(false);
       }
+      // Close formula menu
+      if (showFormulaMenu && !event.target.closest(".formula-menu-container")) {
+        setShowFormulaMenu(false);
+      }
       // Close filter dropdowns in column headers
       if (showFilterDropdown && !event.target.closest(".filter-dropdown-container")) {
         setShowFilterDropdown(null);
@@ -1226,6 +1235,7 @@ const GoogleSheetsClone = () => {
     showTextRotationDropdown,
     showColorPicker,
     showFunctionMenu,
+    showFormulaMenu,
     showFilterDropdown,
   ]);
 
@@ -2151,21 +2161,57 @@ const GoogleSheetsClone = () => {
   };
 
   const functionCategories = {
-    Math: [
-      "SUM",
-      "AVERAGE",
-      "COUNT",
-      "MAX",
-      "MIN",
-      "ROUND",
-      "ABS",
-      "POWER",
-      "SQRT",
+    "Most Used": [
+      "SUM", "AVERAGE", "COUNT", "MAX", "MIN"
     ],
-    Financial: ["PMT", "PV", "FV", "NPER", "NPV", "IRR"],
-    Text: ["CONCATENATE"],
-    Date: ["TODAY", "NOW"],
-    Logical: ["IF"],
+    "All": [
+      "ABS", "ACCRINT", "ACCRINTM", "ACOS", "ACOSH", "ACOT", "ACOTH", "ADDRESS", "AMORLINC", "AND", "ARABIC", "ARRAY_CONSTRAIN", "ARRAYFORMULA", "ASC", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "AVEDEV", "AVERAGE", "AVERAGE.WEIGHTED", "AVERAGEA", "AVERAGEIF", "AVERAGEIFS", "BAHTTEXT", "BASE", "BETA.DIST", "BETA.INV", "BETADIST", "BETAINV", "BIN2DEC", "BIN2HEX", "BIN2OCT", "BINOM.DIST", "BINOM.INV", "BINOMDIST", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT", "BITXOR", "CEILING", "CEILING.MATH", "CEILING.PRECISE", "CHAR", "CHIDIST", "CHIINV", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSE", "CLEAN", "CODE", "COLUMN", "COLUMNS", "COMBIN", "COMBINA", "COMPLEX", "CONCAT", "CONCATENATE", "CONFIDENCE", "CONFIDENCE.NORM", "CONFIDENCE.T", "CONVERT", "CORREL", "COS", "COSH", "COT", "COTH", "COUNT", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "COUNTUNIQUE", "COUPDAYBS", "COUPDAYS", "COUPDAYSNC", "COUPNCD", "COUPNUM", "COUPPCD", "COVAR", "COVARIANCE.P", "COVARIANCE.S", "CRITBINOM", "CSC", "CSCH", "CUMIPMT", "CUMPRINC", "DATE", "DATEDIF", "DATEVALUE", "DAVERAGE", "DAY", "DAYS", "DAYS360", "DB", "DCOUNT", "DCOUNTA", "DDB", "DEC2BIN", "DEC2HEX", "DEC2OCT", "DECIMAL", "DEGREES", "DELTA", "DEVSQ", "DGET", "DMAX", "DMIN", "DOLLAR", "DOLLARDE", "DOLLARFR", "DPRODUCT", "DSTDEV", "DSTDEVP", "DSUM", "DURATION", "DVAR", "DVARP", "EDATE", "EFFECT", "EOMONTH", "ERF", "ERF.PRECISE", "ERFC", "ERFC.PRECISE", "ERROR.TYPE", "EUROCONVERT", "EVEN", "EXACT", "EXP", "EXPON.DIST", "EXPONDIST", "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FACT", "FACTDOUBLE", "FALSE", "FDIST", "FILTER", "FIND", "FINV", "FISHER", "FISHERINV", "FIXED", "FLOOR", "FLOOR.MATH", "FLOOR.PRECISE", "FORECAST", "FORECAST.LINEAR", "FORMULATEXT", "FREQUENCY", "FTEST", "FV", "FVSCHEDULE", "GAMMA", "GAMMA.DIST", "GAMMA.INV", "GAMMADIST", "GAMMAINV", "GAMMALN", "GAMMALN.PRECISE", "GAUSS", "GCD", "GEOMEAN", "GESTEP", "GROWTH", "HARMEAN", "HEX2BIN", "HEX2DEC", "HEX2OCT", "HLOOKUP", "HOUR", "HYPERLINK", "HYPGEOM.DIST", "HYPGEOMDIST", "IF", "IFERROR", "IFNA", "IFS", "IMABS", "IMAGINARY", "IMARGUMENT", "IMCONJUGATE", "IMCOS", "IMCOSH", "IMCOT", "IMCSC", "IMCSCH", "IMDIV", "IMEXP", "IMLN", "IMLOG10", "IMLOG2", "IMPOWER", "IMPRODUCT", "IMREAL", "IMSEC", "IMSECH", "IMSIN", "IMSINH", "IMSQRT", "IMSUB", "IMSUM", "IMTAN", "INDEX", "INDIRECT", "INT", "INTERCEPT", "INTRATE", "IPMT", "IRR", "ISBLANK", "ISERR", "ISERROR", "ISEVEN", "ISFORMULA", "ISLOGICAL", "ISNA", "ISNONTEXT", "ISNUMBER", "ISODD", "ISREF", "ISTEXT", "ISURL", "KURT", "LARGE", "LCM", "LEFT", "LEN", "LINEST", "LN", "LOG", "LOG10", "LOGEST", "LOGNORM.DIST", "LOGNORM.INV", "LOGNORMDIST", "LOGINV", "LOOKUP", "LOWER", "MATCH", "MAX", "MAXA", "MDETERM", "MDURATION", "MEDIAN", "MID", "MIN", "MINA", "MINUTE", "MINVERSE", "MIRR", "MMULT", "MOD", "MODE", "MODE.MULT", "MODE.SNGL", "MODEMULT", "MODESNGL", "MONTH", "MROUND", "MULTINOMIAL", "MUNIT", "N", "NA", "NEGBINOM.DIST", "NEGBINOMDIST", "NETWORKDAYS", "NETWORKDAYS.INTL", "NOMINAL", "NORM.DIST", "NORM.INV", "NORM.S.DIST", "NORM.S.INV", "NORMDIST", "NORMINV", "NORMSDIST", "NORMSINV", "NOT", "NOW", "NPER", "NPV", "OCT2BIN", "OCT2DEC", "OCT2HEX", "ODD", "OFFSET", "OR", "PDURATION", "PEARSON", "PERCENTILE", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTRANK", "PERCENTRANK.EXC", "PERCENTRANK.INC", "PERMUT", "PERMUTATIONA", "PHI", "PI", "PMT", "POISSON", "POISSON.DIST", "POWER", "PPMT", "PRICE", "PRICEDISC", "PRICEMAT", "PROB", "PRODUCT", "PROPER", "PV", "QUARTILE", "QUARTILE.EXC", "QUARTILE.INC", "QUOTIENT", "RADIANS", "RAND", "RANDBETWEEN", "RANK", "RANK.AVG", "RANK.EQ", "RATE", "RECEIVED", "REGEXEXTRACT", "REGEXMATCH", "REGEXREPLACE", "REPLACE", "REPT", "RIGHT", "ROMAN", "ROUND", "ROUNDDOWN", "ROUNDUP", "ROW", "ROWS", "RRI", "RSQ", "RTD", "SEARCH", "SEC", "SECH", "SECOND", "SERIESSUM", "SHEET", "SHEETS", "SIGN", "SIN", "SINH", "SKEW", "SKEW.P", "SLN", "SLOPE", "SMALL", "SQRT", "SQRTPI", "STANDARDIZE", "STDEV", "STDEV.P", "STDEV.S", "STDEVA", "STDEVP", "STDEVPA", "STEYX", "SUBSTITUTE", "SUBTOTAL", "SUM", "SUMIF", "SUMIFS", "SUMPRODUCT", "SUMSQ", "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "SWITCH", "SYD", "T", "T.DIST", "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST", "TAN", "TANH", "TDIST", "TEXT", "TIME", "TIMEVALUE", "TINV", "TODAY", "TRANSPOSE", "TREND", "TRIM", "TRIMMEAN", "TRUE", "TRUNC", "TTEST", "TYPE", "UNICHAR", "UNICODE", "UNIQUE", "UPPER", "VALUE", "VAR", "VAR.P", "VAR.S", "VARA", "VARP", "VARPA", "VDB", "VLOOKUP", "WEEKDAY", "WEEKNUM", "WEIBULL", "WEIBULL.DIST", "WORKDAY", "WORKDAY.INTL", "XIRR", "XNPV", "XOR", "YEAR", "YEARFRAC", "YIELD", "YIELDDISC", "YIELDMAT", "Z.TEST", "ZTEST"
+    ],
+    "Array": [
+      "ARRAY_CONSTRAIN", "ARRAYFORMULA", "FILTER", "FLATTEN", "FREQUENCY", "GROWTH", "LINEST", "LOGEST", "MMULT", "MUNIT", "SEQUENCE", "SORT", "SORTN", "SPLIT", "TRANSPOSE", "UNIQUE"
+    ],
+    "Database": [
+      "DAVERAGE", "DCOUNT", "DCOUNTA", "DGET", "DMAX", "DMIN", "DPRODUCT", "DSTDEV", "DSTDEVP", "DSUM", "DVAR", "DVARP"
+    ],
+    "Date": [
+      "DATE", "DATEDIF", "DATEVALUE", "DAY", "DAYS", "DAYS360", "EDATE", "EOMONTH", "HOUR", "MINUTE", "MONTH", "NETWORKDAYS", "NETWORKDAYS.INTL", "NOW", "SECOND", "TIME", "TIMEVALUE", "TODAY", "WEEKDAY", "WEEKNUM", "WORKDAY", "WORKDAY.INTL", "YEAR", "YEARFRAC"
+    ],
+    "Engineering": [
+      "BESSELI", "BESSELJ", "BESSELK", "BESSELY", "BIN2DEC", "BIN2HEX", "BIN2OCT", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT", "BITXOR", "COMPLEX", "CONVERT", "DEC2BIN", "DEC2HEX", "DEC2OCT", "DELTA", "ERF", "ERF.PRECISE", "ERFC", "ERFC.PRECISE", "GESTEP", "HEX2BIN", "HEX2DEC", "HEX2OCT", "IMABS", "IMAGINARY", "IMARGUMENT", "IMCONJUGATE", "IMCOS", "IMCOSH", "IMCOT", "IMCSC", "IMCSCH", "IMDIV", "IMEXP", "IMLN", "IMLOG10", "IMLOG2", "IMPOWER", "IMPRODUCT", "IMREAL", "IMSEC", "IMSECH", "IMSIN", "IMSINH", "IMSQRT", "IMSUB", "IMSUM", "IMTAN", "OCT2BIN", "OCT2DEC", "OCT2HEX"
+    ],
+    "Filter": [
+      "FILTER", "SORT", "SORTN", "UNIQUE"
+    ],
+    "Financial": [
+      "ACCRINT", "ACCRINTM", "AMORLINC", "COUPDAYBS", "COUPDAYS", "COUPDAYSNC", "COUPNCD", "COUPNUM", "COUPPCD", "CUMIPMT", "CUMPRINC", "DB", "DDB", "DISC", "DOLLAR", "DOLLARDE", "DOLLARFR", "DURATION", "EFFECT", "FV", "FVSCHEDULE", "INTRATE", "IPMT", "IRR", "ISPMT", "MDURATION", "MIRR", "NOMINAL", "NPER", "NPV", "ODDFPRICE", "ODDFYIELD", "ODDLPRICE", "ODDLYIELD", "PDURATION", "PMT", "PPMT", "PRICE", "PRICEDISC", "PRICEMAT", "PV", "RATE", "RECEIVED", "RRI", "SLN", "SYD", "TBILLEQ", "TBILLPRICE", "TBILLYIELD", "VDB", "XIRR", "XNPV", "YIELD", "YIELDDISC", "YIELDMAT"
+    ],
+    "Google": [
+      "GOOGLEFINANCE", "GOOGLETRANSLATE", "IMAGE"
+    ],
+    "Info": [
+      "CELL", "ERROR.TYPE", "INFO", "ISBLANK", "ISERR", "ISERROR", "ISEVEN", "ISFORMULA", "ISLOGICAL", "ISNA", "ISNONTEXT", "ISNUMBER", "ISODD", "ISREF", "ISTEXT", "N", "NA", "TYPE"
+    ],
+    "Logical": [
+      "AND", "FALSE", "IF", "IFERROR", "IFNA", "IFS", "NOT", "OR", "SWITCH", "TRUE", "XOR"
+    ],
+    "Lookup": [
+      "ADDRESS", "CHOOSE", "COLUMN", "COLUMNS", "FORMULATEXT", "GETPIVOTDATA", "HLOOKUP", "INDEX", "INDIRECT", "LOOKUP", "MATCH", "OFFSET", "ROW", "ROWS", "RTD", "TRANSPOSE", "VLOOKUP", "XLOOKUP", "XMATCH"
+    ],
+    "Math": [
+      "ABS", "ACOS", "ACOSH", "ACOT", "ACOTH", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "CEILING", "CEILING.MATH", "CEILING.PRECISE", "COMBIN", "COMBINA", "COS", "COSH", "COT", "COTH", "CSC", "CSCH", "DEGREES", "EVEN", "EXP", "FACT", "FACTDOUBLE", "FLOOR", "FLOOR.MATH", "FLOOR.PRECISE", "GCD", "INT", "LCM", "LN", "LOG", "LOG10", "MOD", "MROUND", "MULTINOMIAL", "ODD", "PI", "POWER", "PRODUCT", "QUOTIENT", "RADIANS", "RAND", "RANDBETWEEN", "ROUND", "ROUNDDOWN", "ROUNDUP", "SEC", "SECH", "SIGN", "SIN", "SINH", "SQRT", "SQRTPI", "SUBTOTAL", "SUM", "SUMIF", "SUMIFS", "SUMPRODUCT", "SUMSQ", "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "TAN", "TANH", "TRUNC"
+    ],
+    "Operator": [
+      "ADD", "DIVIDE", "EQ", "GT", "GTE", "LT", "LTE", "MINUS", "MULTIPLY", "NE", "POW", "UMINUS", "UPLUS", "UNARY_PERCENT"
+    ],
+    "Parser": [
+      "REGEXEXTRACT", "REGEXMATCH", "REGEXREPLACE"
+    ],
+    "Statistical": [
+      "AVEDEV", "AVERAGE", "AVERAGE.WEIGHTED", "AVERAGEA", "AVERAGEIF", "AVERAGEIFS", "BETA.DIST", "BETA.INV", "BETADIST", "BETAINV", "BINOM.DIST", "BINOM.INV", "BINOMDIST", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT", "BITXOR", "CEILING", "CEILING.MATH", "CEILING.PRECISE", "CHAR", "CHIDIST", "CHIINV", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSE", "CLEAN", "CODE", "COLUMN", "COLUMNS", "COMBIN", "COMBINA", "COMPLEX", "CONCAT", "CONCATENATE", "CONFIDENCE", "CONFIDENCE.NORM", "CONFIDENCE.T", "CONVERT", "CORREL", "COS", "COSH", "COT", "COTH", "CSC", "CSCH", "DEGREES", "EVEN", "EXP", "FACT", "FACTDOUBLE", "FLOOR", "FLOOR.MATH", "FLOOR.PRECISE", "GCD", "INT", "LCM", "LN", "LOG", "LOG10", "MOD", "MROUND", "MULTINOMIAL", "ODD", "PI", "POWER", "PRODUCT", "QUOTIENT", "RADIANS", "RAND", "RANDBETWEEN", "ROUND", "ROUNDDOWN", "ROUNDUP", "SEC", "SECH", "SIGN", "SIN", "SINH", "SQRT", "SQRTPI", "SUBTOTAL", "SUM", "SUMIF", "SUMIFS", "SUMPRODUCT", "SUMSQ", "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "TAN", "TANH", "TRUNC"
+    ],
+    "Text": [
+      "ARABIC", "ASC", "BAHTTEXT", "CHAR", "CLEAN", "CODE", "CONCAT", "CONCATENATE", "DOLLAR", "EXACT", "FIND", "FIXED", "LEFT", "LEN", "LOWER", "MID", "NUMBERVALUE", "PROPER", "REGEXEXTRACT", "REGEXMATCH", "REGEXREPLACE", "REPLACE", "REPT", "RIGHT", "ROMAN", "SEARCH", "SPLIT", "SUBSTITUTE", "T", "TEXT", "TRIM", "UNICHAR", "UNICODE", "UPPER", "VALUE"
+    ]
   };
 
   return (
@@ -2974,21 +3020,18 @@ const GoogleSheetsClone = () => {
               )}
           </div>
 
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-            <div className="flex flex-wrap items-start space-x-2 justify-start">
-              <div className="relative function-menu-container">
+          {/* Formula Icon (Σ) */}
+          <div className="relative formula-menu-container">
             <button
-              onClick={() => setShowFunctionMenu(!showFunctionMenu)}
+              onClick={() => setShowFormulaMenu(!showFormulaMenu)}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
+              title="Functions"
             >
-              <Calculator size={16} />
-              <ChevronDown size={12} className="ml-1" />
+              <span className="text-lg font-bold">Σ</span>
             </button>
 
-            {showFunctionMenu && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg z-50">
+            {showFormulaMenu && (
+              <div className="absolute top-full left-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 <div className="p-2 border-b">
                   <input
                     type="text"
@@ -2998,7 +3041,7 @@ const GoogleSheetsClone = () => {
                     onChange={(e) => setFormulaSearch(e.target.value)}
                   />
                 </div>
-                <div className="max-h-64 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto">
                   {Object.entries(functionCategories).map(
                     ([category, funcs]) => (
                       <div key={category} className="p-2">
@@ -3025,6 +3068,61 @@ const GoogleSheetsClone = () => {
                       </div>
                     )
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Link Icon */}
+          <div className="relative">
+            <button
+              onClick={() => setShowLinkModal(true)}
+              className="p-2 hover:bg-gray-100 rounded flex items-center"
+              title="Insert link"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </button>
+          </div>
+
+            {/* Separator */}
+            <div className="w-px h-6 bg-gray-300 mx-2"></div>
+
+            <div className="flex flex-wrap items-start space-x-2 justify-start">
+              <div className="relative function-menu-container">
+            <button
+              onClick={() => setShowFunctionMenu(!showFunctionMenu)}
+              className="p-2 hover:bg-gray-100 rounded flex items-center"
+            >
+              <Calculator size={16} />
+              <ChevronDown size={12} className="ml-1" />
+            </button>
+
+            {showFunctionMenu && (
+              <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50">
+                <div className="py-1">
+                            <button
+                    onClick={() => {
+                      setShowFunctionMenu(false);
+                      showSuccess("Create group by view");
+                    }}
+                    className="flex items-center w-full px-3 py-2 text-sm hover:bg-gray-100 text-left"
+                  >
+                    <span className="mr-2">+</span>
+                    Create group by view
+                    <ChevronRight size={12} className="ml-auto" />
+                            </button>
+                  <button
+                    onClick={() => {
+                      setShowFunctionMenu(false);
+                      showSuccess("Create filter view");
+                    }}
+                    className="flex items-center w-full px-3 py-2 text-sm hover:bg-gray-100 text-left"
+                  >
+                    <span className="mr-2">+</span>
+                    Create filter view
+                  </button>
                 </div>
               </div>
             )}
@@ -3307,47 +3405,47 @@ const GoogleSheetsClone = () => {
                 }, 0);
               }}
             >
-              <input
-                ref={formulaBarInputRef}
-                type="text"
-                value={formulaBarValue}
-                onChange={(e) => setFormulaBarValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && selectedCell) {
+                <input
+                  ref={formulaBarInputRef}
+                  type="text"
+                  value={formulaBarValue}
+                  onChange={(e) => setFormulaBarValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && selectedCell) {
                     console.log("Enter pressed, updating cell with:", formulaBarValue);
-                    updateCellLocal(selectedCell, formulaBarValue);
-                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                    if (match) {
-                      const nextCell = match[1] + (parseInt(match[2]) + 1);
-                      handleCellClick(nextCell);
-                    }
-                  } else if (e.key === "Tab" && selectedCell) {
-                    e.preventDefault();
-                    console.log("Tab pressed, updating cell with:", formulaBarValue);
-                    updateCellLocal(selectedCell, formulaBarValue);
-                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                    if (match) {
-                      const colNum = getColumnNumber(match[1]);
-                      const nextCell = getColumnName(colNum + 1) + match[2];
-                      handleCellClick(nextCell);
-                    }
-                  }
-                }}
-                onFocus={() => setIsEditing(true)}
-                onBlur={() => {
-                  setTimeout(() => {
-                    if (selectedCell) {
-                      console.log("Formula bar blur, updating cell with:", formulaBarValue);
                       updateCellLocal(selectedCell, formulaBarValue);
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const nextCell = match[1] + (parseInt(match[2]) + 1);
+                        handleCellClick(nextCell);
+                      }
+                    } else if (e.key === "Tab" && selectedCell) {
+                      e.preventDefault();
+                    console.log("Tab pressed, updating cell with:", formulaBarValue);
+                      updateCellLocal(selectedCell, formulaBarValue);
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const colNum = getColumnNumber(match[1]);
+                        const nextCell = getColumnName(colNum + 1) + match[2];
+                        handleCellClick(nextCell);
+                      }
                     }
-                    setIsEditing(false);
-                  }, 150);
-                }}
+                  }}
+                  onFocus={() => setIsEditing(true)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (selectedCell) {
+                      console.log("Formula bar blur, updating cell with:", formulaBarValue);
+                        updateCellLocal(selectedCell, formulaBarValue);
+                      }
+                      setIsEditing(false);
+                    }, 150);
+                  }}
                 onMouseUp={(e) => e.stopPropagation()}
                 className="flex-1 px-3 py-2 focus:outline-none text-sm h-full border-none"
-                placeholder="Enter value or formula (start with =)"
-                autoComplete="off"
-              />
+                  placeholder="Enter value or formula (start with =)"
+                  autoComplete="off"
+                />
             </div>
           </div>
         </div>
@@ -3932,6 +4030,72 @@ const GoogleSheetsClone = () => {
                   className="px-4 py-2 border rounded hover:bg-gray-50"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Insert Link</h2>
+              <button
+                onClick={() => setShowLinkModal(false)}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Link URL
+                </label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Link Text (optional)
+                </label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Display text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setShowLinkModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (linkUrl && selectedCell) {
+                      const linkValue = linkText ? `=HYPERLINK("${linkUrl}", "${linkText}")` : `=HYPERLINK("${linkUrl}")`;
+                      updateCellLocal(selectedCell, linkValue);
+                      setShowLinkModal(false);
+                      setLinkUrl("");
+                      setLinkText("");
+                      showSuccess("Link inserted");
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Insert Link
                 </button>
               </div>
             </div>
