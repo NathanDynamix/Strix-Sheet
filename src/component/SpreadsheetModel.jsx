@@ -13,6 +13,11 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  WrapText,
+  RotateCcw,
   Palette,
   Calculator,
   ChevronDown,
@@ -123,6 +128,17 @@ const GoogleSheetsClone = () => {
   // Number formatting functionality
   const [showNumberFormatDropdown, setShowNumberFormatDropdown] = useState(false);
   const [formatUpdateTrigger, setFormatUpdateTrigger] = useState(0);
+  const [showTextRotationDropdown, setShowTextRotationDropdown] = useState(false);
+  
+  // Text rotation options
+  const textRotationOptions = [
+    { label: '0°', value: 0 },
+    { label: '45°', value: 45 },
+    { label: '90°', value: 90 },
+    { label: '135°', value: 135 },
+    { label: '180°', value: 180 },
+    { label: 'Vertical', value: 'vertical' }
+  ];
   
   // Google Sheets-like filter states
   const [columnFilters, setColumnFilters] = useState({});
@@ -432,6 +448,28 @@ const GoogleSheetsClone = () => {
       const currentPlaces = getCurrentDecimalPlaces();
       formatCell({ decimalPlaces: Math.min(currentPlaces + 1, 10) });
       showSuccess(`Increased decimal places to ${Math.min(currentPlaces + 1, 10)}`);
+    }
+  };
+
+  // Text formatting handlers
+  const handleTextWrap = () => {
+    if (selectedCell) {
+      const currentCell = getLocalCellData(selectedCell);
+      const currentWrap = currentCell.style?.textWrap || 'nowrap';
+      const newWrap = currentWrap === 'wrap' ? 'nowrap' : 'wrap';
+      formatCell({ textWrap: newWrap });
+      showSuccess(newWrap === 'wrap' ? 'Text wrapping enabled' : 'Text wrapping disabled');
+      
+      // Force re-render to update row heights
+      setFormatUpdateTrigger(prev => prev + 1);
+    }
+  };
+
+  const handleTextRotation = (rotation) => {
+    if (selectedCell) {
+      formatCell({ textRotation: rotation });
+      showSuccess(`Text rotated to ${rotation === 'vertical' ? 'vertical' : rotation + '°'}`);
+      setShowTextRotationDropdown(false);
     }
   };
 
@@ -886,7 +924,25 @@ const GoogleSheetsClone = () => {
   };
 
   const getRowHeight = (row) => {
-    return rowHeights[row] || 24; // Default height
+    const baseHeight = rowHeights[row] || 24; // Default height
+    
+    // Check if any cell in this row has text wrapping enabled
+    let maxRequiredHeight = baseHeight;
+    for (let col = 1; col <= 40; col++) {
+      const cellId = getColumnName(col) + row;
+      const cellData = data[cellId];
+      if (cellData?.style?.textWrap === 'wrap' && cellData?.value) {
+        const columnWidth = getColumnWidth(getColumnName(col));
+        const text = cellData.value.toString();
+        // More accurate height calculation based on character width
+        const charsPerLine = Math.floor((columnWidth - 8) / 7); // 7px per char, 8px padding
+        const lines = Math.ceil(text.length / charsPerLine);
+        const requiredHeight = Math.max(24, lines * 16 + 8); // 16px line height, 8px padding
+        maxRequiredHeight = Math.max(maxRequiredHeight, requiredHeight);
+      }
+    }
+    
+    return Math.max(baseHeight, maxRequiredHeight);
   };
 
   const handleColumnResize = (column, newWidth) => {
@@ -976,13 +1032,16 @@ const GoogleSheetsClone = () => {
       if (showNumberFormatDropdown && !event.target.closest(".number-format-dropdown")) {
         setShowNumberFormatDropdown(false);
       }
+      if (showTextRotationDropdown && !event.target.closest(".text-rotation-dropdown")) {
+        setShowTextRotationDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [filterMenuOpen, showZoomDropdown, showFontDropdown, showFontSizeDropdown, showNumberFormatDropdown]);
+  }, [filterMenuOpen, showZoomDropdown, showFontDropdown, showFontSizeDropdown, showNumberFormatDropdown, showTextRotationDropdown]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1570,6 +1629,28 @@ const GoogleSheetsClone = () => {
     if (cellData.style.backgroundColor)
       style.backgroundColor = cellData.style.backgroundColor;
     if (cellData.style.textAlign) style.textAlign = cellData.style.textAlign;
+    if (cellData.style.verticalAlign) style.verticalAlign = cellData.style.verticalAlign;
+    if (cellData.style.textWrap) {
+      if (cellData.style.textWrap === 'wrap') {
+        style.whiteSpace = 'pre-wrap';
+        style.wordWrap = 'break-word';
+        style.overflowWrap = 'break-word';
+        style.maxWidth = '100%';
+        style.width = '100%';
+      } else {
+        style.whiteSpace = 'nowrap';
+      }
+    }
+    if (cellData.style.textRotation) {
+      const rotation = cellData.style.textRotation;
+      if (rotation === 'vertical') {
+        style.writingMode = 'vertical-rl';
+        style.textOrientation = 'mixed';
+      } else if (typeof rotation === 'number') {
+        style.transform = `rotate(${rotation}deg)`;
+        style.transformOrigin = 'center';
+      }
+    }
 
     return style;
   };
@@ -2367,110 +2448,101 @@ const GoogleSheetsClone = () => {
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
-            {/* Colors */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-              </svg>
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM5 19V5h14v14H5z" />
-              </svg>
-            </button>
-
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-            {/* Borders */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z" />
-              </svg>
-            </button>
-
-            {/* Merge cells */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 7h6v2H7V7zm0 4h6v2H7v-2zm0 4h6v2H7v-2z" />
-              </svg>
-            </button>
-
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
             {/* Alignment */}
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => formatCell({ textAlign: "left" })}
                 className="p-2 hover:bg-gray-100 rounded"
+                title="Align Left"
               >
                 <AlignLeft size={16} className="text-gray-600" />
               </button>
               <button
                 onClick={() => formatCell({ textAlign: "center" })}
                 className="p-2 hover:bg-gray-100 rounded"
+                title="Align Center"
               >
                 <AlignCenter size={16} className="text-gray-600" />
               </button>
               <button
                 onClick={() => formatCell({ textAlign: "right" })}
                 className="p-2 hover:bg-gray-100 rounded"
+                title="Align Right"
               >
                 <AlignRight size={16} className="text-gray-600" />
               </button>
             </div>
 
-            {/* More alignment options */}
+            {/* Vertical Alignment */}
             <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                Top
+              <button
+                onClick={() => formatCell({ verticalAlign: "top" })}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Align Top"
+              >
+                <AlignVerticalJustifyStart size={16} className="text-gray-600" />
               </button>
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                Middle
+              <button
+                onClick={() => formatCell({ verticalAlign: "middle" })}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Align Middle"
+              >
+                <AlignVerticalJustifyCenter size={16} className="text-gray-600" />
               </button>
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                Bottom
+              <button
+                onClick={() => formatCell({ verticalAlign: "bottom" })}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Align Bottom"
+              >
+                <AlignVerticalJustifyEnd size={16} className="text-gray-600" />
               </button>
             </div>
 
+            {/* Text Wrapping */}
+            <button
+              onClick={handleTextWrap}
+              className={`p-2 hover:bg-gray-100 rounded ${
+                selectedCell && getLocalCellData(selectedCell)?.style?.textWrap === 'wrap' 
+                  ? 'bg-blue-100 text-blue-600' 
+                  : ''
+              }`}
+              title="Wrap Text"
+            >
+              <WrapText size={16} className="text-gray-600" />
+            </button>
+
+            {/* Text Rotation */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTextRotationDropdown(!showTextRotationDropdown)}
+                className="p-2 hover:bg-gray-100 rounded flex items-center"
+                title="Text Rotation"
+              >
+                <RotateCcw size={16} className="text-gray-600" />
+                <ChevronDown size={12} className="ml-1" />
+              </button>
+              
+              {showTextRotationDropdown && (
+                <div className="text-rotation-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                  <div className="p-2">
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">Text Rotation</div>
+                    {textRotationOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleTextRotation(option.value)}
+                        className="block w-full text-left px-2 py-1 hover:bg-gray-100 text-sm"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-            {/* More tools */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
-              </svg>
-            </button>
-
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <MessageSquare size={16} className="text-gray-600" />
-            </button>
-
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <BarChart size={16} className="text-gray-600" />
-            </button>
 
             {/* Filter */}
             <div className="relative">
@@ -3134,7 +3206,9 @@ const GoogleSheetsClone = () => {
                             style={{
                               width: `${columnWidth}px`,
                               minWidth: `${columnWidth}px`,
-                              height: `${rowHeight}px`
+                              maxWidth: `${columnWidth}px`,
+                              height: `${rowHeight}px`,
+                              tableLayout: 'fixed'
                             }}
                             onClick={(e) => {
                               e.preventDefault();
@@ -3202,7 +3276,7 @@ const GoogleSheetsClone = () => {
                               />
                             ) : (
                               <div
-                                className="px-1 text-xs truncate"
+                                className={`px-1 text-xs ${cellData?.style?.textWrap === 'wrap' ? 'break-words' : 'truncate'}`}
                                 style={getCellStyle(cellId)}
                               >
                                 {formatCellValue(cellData)}
