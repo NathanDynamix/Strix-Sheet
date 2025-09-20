@@ -159,8 +159,25 @@ const GoogleSheetsClone = () => {
   const cellInputRef = useRef(null);
   const formulaBarInputRef = useRef(null);
   const isNavigatingRef = useRef(false);
+  const csvFileInputRef = useRef(null);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
-  const data = activeSheet ? activeSheet.data : {};
+  const data = activeSheet ? (activeSheet.data instanceof Map ? Object.fromEntries(activeSheet.data) : activeSheet.data) : {};
+  
+  // Debug logging
+  console.log('Active sheet:', activeSheet);
+  console.log('Active sheet data:', activeSheet?.data);
+  console.log('Active sheet data type:', typeof activeSheet?.data, activeSheet?.data instanceof Map);
+  console.log('Data object:', data);
+  console.log('Data type:', typeof data, Array.isArray(data));
+  
+  // Check specific cell data
+  if (activeSheet?.data) {
+    if (activeSheet.data instanceof Map) {
+      console.log('A1 from Map:', activeSheet.data.get('A1'));
+    } else {
+      console.log('A1 from object:', activeSheet.data['A1']);
+    }
+  }
 
   // Update sheets when currentSpreadsheet changes
   useEffect(() => {
@@ -179,7 +196,15 @@ const GoogleSheetsClone = () => {
     for (let row = startRow; row <= endRow; row++) {
       for (let col = 1; col <= 40; col++) {
         const cellId = getColumnName(col) + row;
-        result[cellId] = data[cellId] || { value: "", formula: "", style: {} };
+        const cellData = data[cellId];
+        
+        // Debug logging for specific cells
+        if (cellId === 'A1') {
+          console.log(`MemoizedCellData for ${cellId}:`, cellData);
+          console.log(`Data[${cellId}]:`, data[cellId]);
+        }
+        
+        result[cellId] = cellData || { value: "", formula: "", style: {} };
       }
     }
     return result;
@@ -315,6 +340,124 @@ const GoogleSheetsClone = () => {
     showSuccess('CSV exported successfully!');
   };
 
+  const handleImportCSV = () => {
+    csvFileInputRef.current?.click();
+  };
+
+  const handleCSVFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      showError('Please select a CSV file');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const csvData = parseCSV(text);
+      importCSVData(csvData);
+      showSuccess(`CSV imported successfully! ${csvData.length} rows imported.`);
+    } catch (error) {
+      console.error('Error importing CSV:', error);
+      showError('Failed to import CSV file. Please check the file format.');
+    }
+
+    // Reset the file input
+    event.target.value = '';
+  };
+
+  const parseCSV = (csvText) => {
+    const lines = csvText.split('\n');
+    const data = [];
+    
+    for (const line of lines) {
+      if (line.trim()) {
+        // Simple CSV parsing - handles basic cases
+        const row = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            row.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        // Add the last field
+        row.push(current.trim());
+        
+        // Remove quotes from fields
+        const cleanedRow = row.map(field => {
+          if (field.startsWith('"') && field.endsWith('"')) {
+            return field.slice(1, -1);
+          }
+          return field;
+        });
+        
+        data.push(cleanedRow);
+      }
+    }
+    
+    return data;
+  };
+
+  const importCSVData = (csvData) => {
+    if (!csvData || csvData.length === 0) return;
+
+    const newSheets = sheets.map((sheet) => {
+      if (sheet.id === activeSheetId) {
+        const newData = { ...sheet.data };
+        
+        // Clear existing data in the import area (first 100 rows, first 26 columns)
+        for (let row = 1; row <= Math.min(csvData.length, 100); row++) {
+          for (let col = 1; col <= 26; col++) {
+            const cellId = getColumnName(col) + row;
+            delete newData[cellId];
+          }
+        }
+        
+        // Import CSV data
+        csvData.forEach((row, rowIndex) => {
+          if (rowIndex >= 100) return; // Limit to 100 rows
+          
+          row.forEach((cellValue, colIndex) => {
+            if (colIndex >= 26) return; // Limit to 26 columns (A-Z)
+            
+            const cellId = getColumnName(colIndex + 1) + (rowIndex + 1);
+            newData[cellId] = {
+              value: cellValue,
+              formula: cellValue,
+              style: {}
+            };
+          });
+        });
+        
+        return { ...sheet, data: newData };
+      }
+      return sheet;
+    });
+
+    setSheets(newSheets);
+    
+    // Update backend if we have a current spreadsheet
+    if (currentSpreadsheet) {
+      try {
+        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
+        autoSave(activeSheetId, sheetData);
+      } catch (error) {
+        console.error('Error auto-saving imported data:', error);
+      }
+    }
+  };
+
   // Edit menu functions
   const handleUndo = () => {
     if (historyIndex > 0) {
@@ -334,9 +477,101 @@ const GoogleSheetsClone = () => {
     }
   };
 
-  const handleCut = () => {
+  // Local function to get cell data from local state
+  const getLocalCellData = (cellId) => {
+    const cellData = data[cellId];
+    console.log(`Getting cell data for ${cellId}:`, cellData);
+    console.log('Available data keys:', Object.keys(data));
+    console.log('Raw data object:', data);
+    console.log('Specific cell data:', data[cellId]);
+    
+    // If cellData exists but has no value, check if it has any properties
+    if (cellData && Object.keys(cellData).length > 0) {
+      console.log('Cell data properties:', Object.keys(cellData));
+      console.log('Cell data values:', Object.values(cellData));
+    }
+    
+    return cellData || { value: "", formula: "", style: {} };
+  };
+
+  // Function to save current state to history
+  const saveHistory = () => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(JSON.parse(JSON.stringify(data)));
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  // Function to update cell data locally and sync with backend
+  const updateCellLocal = async (cellId, value, formula = null, style = null) => {
+    console.log(`Updating cell ${cellId} with value:`, value, 'formula:', formula, 'style:', style);
+    saveHistory();
+
+    const newSheets = sheets.map((sheet) => {
+      if (sheet.id === activeSheetId) {
+        const newData = { ...sheet.data };
+
+        if (!newData[cellId]) {
+          newData[cellId] = { value: "", formula: "", style: {} };
+        }
+
+        const formulaValue = formula !== null ? formula : value;
+        const evaluatedValue = formulaValue.startsWith("=")
+          ? evaluateFormula(formulaValue)
+          : formulaValue;
+
+        const cellData = {
+          ...newData[cellId],
+          formula: formulaValue,
+          value: evaluatedValue,
+          style: style ? { ...newData[cellId].style, ...style } : newData[cellId].style,
+        };
+
+        newData[cellId] = cellData;
+        console.log(`Updated cell ${cellId} data:`, cellData);
+
+        // Recalculate dependent cells
+        Object.keys(newData).forEach((id) => {
+          if (
+            newData[id].formula &&
+            newData[id].formula.startsWith("=") &&
+            newData[id].formula.includes(cellId)
+          ) {
+            newData[id].value = evaluateFormula(newData[id].formula);
+          }
+        });
+
+        return { ...sheet, data: newData };
+      }
+      return sheet;
+    });
+
+    setSheets(newSheets);
+    console.log('Updated sheets:', newSheets);
+
+    // Update backend if we have a current spreadsheet
+    if (currentSpreadsheet) {
+      try {
+        const cellData = {
+          value: formulaValue.startsWith("=") ? evaluatedValue : formulaValue,
+          formula: formulaValue,
+          style: newSheets.find(s => s.id === activeSheetId)?.data[cellId]?.style || {}
+        };
+        
+        await updateCell(activeSheetId, cellId, cellData);
+        
+        // Auto-save the entire sheet data
+        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
+        await autoSave(activeSheetId, sheetData);
+      } catch (error) {
+        console.error('Error updating cell in backend:', error);
+      }
+    }
+  };
+
+  const handleCut = useCallback(() => {
     if (selectedCell) {
-      const cellData = getCellData(selectedCell);
+      const cellData = getLocalCellData(selectedCell);
       console.log('Cutting cell data:', cellData);
       
       // Store the cell data in clipboard
@@ -344,44 +579,54 @@ const GoogleSheetsClone = () => {
       setClipboardType('cut');
       
       // Clear the cell and update formula bar
-      updateCellLocal(selectedCell, '', '', {});
+      updateCellLocal(selectedCell, '');
       setFormulaBarValue('');
       
       showSuccess('Cell cut to clipboard');
+    } else {
+      console.warn('No cell selected for cut operation');
+      showError('Please select a cell to cut');
     }
-  };
+  }, [selectedCell, data, updateCellLocal, setFormulaBarValue, showSuccess, showError]);
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     if (selectedCell) {
-      const cellData = getCellData(selectedCell);
+      const cellData = getLocalCellData(selectedCell);
       console.log('Copying cell data:', cellData);
       
       setClipboard(cellData);
       setClipboardType('copy');
       showSuccess('Cell copied to clipboard');
+    } else {
+      console.warn('No cell selected for copy operation');
+      showError('Please select a cell to copy');
     }
-  };
+  }, [selectedCell, data, showSuccess, showError]);
 
-  const handlePaste = () => {
+  const handlePaste = useCallback(() => {
     if (clipboard && selectedCell) {
       console.log('Pasting data:', clipboard);
       
-      // Update both the cell data and formula bar
-      const valueToPaste = clipboard.value || clipboard.formula || '';
-      updateCellLocal(selectedCell, valueToPaste, clipboard.formula, clipboard.style);
+      // Update both the cell data and formula bar with formula and styles
+      const formulaToPaste = clipboard.formula || clipboard.value || '';
+      updateCellLocal(selectedCell, clipboard.value || '', formulaToPaste, clipboard.style);
       
       // Update formula bar to show the pasted content
-      setFormulaBarValue(valueToPaste);
+      setFormulaBarValue(formulaToPaste);
       
       if (clipboardType === 'cut') {
         setClipboard(null);
         setClipboardType(null);
       }
       showSuccess('Cell pasted');
-    } else {
-      console.log('No clipboard data or selected cell:', { clipboard, selectedCell });
+    } else if (!clipboard) {
+      console.warn('No data in clipboard for paste operation');
+      showError('No data to paste. Please copy a cell first.');
+    } else if (!selectedCell) {
+      console.warn('No cell selected for paste operation');
+      showError('Please select a cell to paste into.');
     }
-  };
+  }, [clipboard, selectedCell, clipboardType, updateCellLocal, setFormulaBarValue, showSuccess, showError]);
 
   // Insert menu functions
   const handleInsertRow = () => {
@@ -399,18 +644,20 @@ const GoogleSheetsClone = () => {
   // Format menu functions
   const handleBold = () => {
     if (selectedCell) {
-      const cellData = getCellData(selectedCell);
+      const cellData = getLocalCellData(selectedCell);
       const newStyle = { ...cellData.style, fontWeight: cellData.style?.fontWeight === 'bold' ? 'normal' : 'bold' };
-      updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+      // Apply the style directly to the cell
+      formatCell({ fontWeight: newStyle.fontWeight });
       showSuccess('Text formatting updated');
     }
   };
 
   const handleItalic = () => {
     if (selectedCell) {
-      const cellData = getCellData(selectedCell);
+      const cellData = getLocalCellData(selectedCell);
       const newStyle = { ...cellData.style, fontStyle: cellData.style?.fontStyle === 'italic' ? 'normal' : 'italic' };
-      updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+      // Apply the style directly to the cell
+      formatCell({ fontStyle: newStyle.fontStyle });
       showSuccess('Text formatting updated');
     }
   };
@@ -596,6 +843,7 @@ const GoogleSheetsClone = () => {
             break;
           case 'c':
             event.preventDefault();
+            console.log('Cmd+C pressed, calling handleCopy');
             handleCopy();
             break;
           case 'x':
@@ -604,7 +852,11 @@ const GoogleSheetsClone = () => {
             break;
           case 'v':
             event.preventDefault();
-            handlePaste();
+            console.log('Cmd+V pressed, calling handlePaste');
+            // Use setTimeout to ensure the paste happens after any other processing
+            setTimeout(() => {
+              handlePaste();
+            }, 0);
             break;
           case 'z':
             event.preventDefault();
@@ -638,7 +890,7 @@ const GoogleSheetsClone = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedCell, clipboard, historyIndex, history]);
+  }, []); // Remove dependencies to prevent frequent recreation
 
   // Mouse events for resizing
   useEffect(() => {
@@ -1035,73 +1287,7 @@ const GoogleSheetsClone = () => {
     }
   };
 
-  const saveHistory = () => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(JSON.parse(JSON.stringify(data)));
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
 
-  const updateCellLocal = async (cellId, value) => {
-    saveHistory();
-
-    const newSheets = sheets.map((sheet) => {
-      if (sheet.id === activeSheetId) {
-        const newData = { ...sheet.data };
-
-        if (!newData[cellId]) {
-          newData[cellId] = { value: "", formula: "", style: {} };
-        }
-
-        const evaluatedValue = value.startsWith("=")
-          ? evaluateFormula(value)
-          : value;
-
-        const cellData = {
-          ...newData[cellId],
-          formula: value,
-          value: evaluatedValue,
-        };
-
-        newData[cellId] = cellData;
-
-        // Recalculate dependent cells
-        Object.keys(newData).forEach((id) => {
-          if (
-            newData[id].formula &&
-            newData[id].formula.startsWith("=") &&
-            newData[id].formula.includes(cellId)
-          ) {
-            newData[id].value = evaluateFormula(newData[id].formula);
-          }
-        });
-
-        return { ...sheet, data: newData };
-      }
-      return sheet;
-    });
-
-    setSheets(newSheets);
-
-    // Update backend if we have a current spreadsheet
-    if (currentSpreadsheet) {
-      try {
-        const cellData = {
-          value: value.startsWith("=") ? evaluateFormula(value) : value,
-          formula: value,
-          style: newSheets.find(s => s.id === activeSheetId)?.data[cellId]?.style || {}
-        };
-        
-        await updateCell(activeSheetId, cellId, cellData);
-        
-        // Auto-save the entire sheet data
-        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
-        await autoSave(activeSheetId, sheetData);
-      } catch (error) {
-        console.error('Error updating cell in backend:', error);
-      }
-    }
-  };
 
   const undo = () => {
     if (historyIndex > 0) {
@@ -1129,17 +1315,6 @@ const GoogleSheetsClone = () => {
     }
   };
 
-  const copyCell = () => {
-    if (selectedCell && data[selectedCell]) {
-      setClipboard(data[selectedCell]);
-    }
-  };
-
-  const pasteCell = () => {
-    if (clipboard && selectedCell) {
-      updateCellLocal(selectedCell, clipboard.formula || clipboard.value);
-    }
-  };
 
   const deleteCell = () => {
     if (selectedCell) {
@@ -1266,6 +1441,11 @@ const GoogleSheetsClone = () => {
 
   // Handle keyboard input when cell is selected but not editing
   const handleKeyPress = (e) => {
+    // Don't interfere with copy/paste shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      return; // Let the handleKeyDown function handle these
+    }
+    
     // Only handle printable characters, not special keys
     const isPrintableKey = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
     
@@ -1740,9 +1920,9 @@ const GoogleSheetsClone = () => {
             <button
               onClick={() => {
                 if (selectedCell) {
-                  const cellData = getCellData(selectedCell);
+                  const cellData = getLocalCellData(selectedCell);
                   const newStyle = { ...cellData.style, textDecoration: cellData.style?.textDecoration === 'line-through' ? 'none' : 'line-through' };
-                  updateCellLocal(selectedCell, cellData.value, cellData.formula, newStyle);
+                  formatCell({ textDecoration: newStyle.textDecoration });
                   showSuccess('Text formatting updated');
                 }
               }}
@@ -2145,7 +2325,10 @@ const GoogleSheetsClone = () => {
               <BarChart size={14} />
               <span>Create Chart</span>
             </button>
-            <button className="px-3 py-1 bg-white text-gray-700 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 flex items-center space-x-1">
+            <button 
+              onClick={handleImportCSV}
+              className="px-3 py-1 bg-white text-gray-700 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 flex items-center space-x-1"
+            >
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -2629,6 +2812,15 @@ const GoogleSheetsClone = () => {
           </div>
         </div>
       )}
+
+      {/* Hidden CSV File Input */}
+      <input
+        ref={csvFileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleCSVFileUpload}
+        className="hidden"
+      />
     </div>
   );
 };
