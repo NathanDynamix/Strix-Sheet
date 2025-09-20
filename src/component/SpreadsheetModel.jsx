@@ -2952,9 +2952,10 @@ const GoogleSheetsClone = () => {
                            
                            {/* Resize handle */}
                            <div
-                             className="absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                             className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
                              onMouseDown={(e) => {
                                e.preventDefault();
+                               e.stopPropagation();
                                startResize('column', columnName, e);
                              }}
                            />
@@ -3104,9 +3105,10 @@ const GoogleSheetsClone = () => {
                          
                          {/* Row resize handle */}
                          <div
-                           className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                           className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
                            onMouseDown={(e) => {
                              e.preventDefault();
+                             e.stopPropagation();
                              startResize('row', rowIndex + 1, e);
                            }}
                          />
