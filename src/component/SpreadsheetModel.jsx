@@ -2951,7 +2951,7 @@ const GoogleSheetsClone = () => {
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
             <div className="flex flex-wrap items-start space-x-2 justify-start">
-              <div className="">
+              <div className="relative">
             <button
               onClick={() => setShowFunctionMenu(!showFunctionMenu)}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
@@ -3002,7 +3002,7 @@ const GoogleSheetsClone = () => {
               </div>
             )}
           </div>
-              <div className="">
+              <div className="relative">
             <button
               onClick={() => setShowColorPicker(!showColorPicker)}
               className="p-2 hover:bg-gray-100 rounded"
@@ -3079,7 +3079,7 @@ const GoogleSheetsClone = () => {
           </button>
 
           {/* Filter Button */}
-              <div className="">
+              <div className="relative">
             <button
               onClick={() => setFilterMenuOpen(!filterMenuOpen)}
               className={`p-2 rounded flex items-center ${
