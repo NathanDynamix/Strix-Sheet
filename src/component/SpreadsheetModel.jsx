@@ -116,6 +116,14 @@ const GoogleSheetsClone = () => {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showZoomDropdown, setShowZoomDropdown] = useState(false);
   
+  // Font functionality
+  const [showFontDropdown, setShowFontDropdown] = useState(false);
+  const [showFontSizeDropdown, setShowFontSizeDropdown] = useState(false);
+  
+  // Number formatting functionality
+  const [showNumberFormatDropdown, setShowNumberFormatDropdown] = useState(false);
+  const [formatUpdateTrigger, setFormatUpdateTrigger] = useState(0);
+  
   // Google Sheets-like filter states
   const [columnFilters, setColumnFilters] = useState({});
   const [filterDropdowns, setFilterDropdowns] = useState({});
@@ -160,23 +168,14 @@ const GoogleSheetsClone = () => {
   const isNavigatingRef = useRef(false);
   const csvFileInputRef = useRef(null);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
-  const data = activeSheet ? (activeSheet.data instanceof Map ? Object.fromEntries(activeSheet.data) : activeSheet.data) : {};
   
-  // Debug logging
-  console.log('Active sheet:', activeSheet);
-  console.log('Active sheet data:', activeSheet?.data);
-  console.log('Active sheet data type:', typeof activeSheet?.data, activeSheet?.data instanceof Map);
-  console.log('Data object:', data);
-  console.log('Data type:', typeof data, Array.isArray(data));
+  // Use useMemo to ensure data updates when sheets change
+  const data = useMemo(() => {
+    return activeSheet ? (activeSheet.data instanceof Map ? Object.fromEntries(activeSheet.data) : activeSheet.data) : {};
+  }, [activeSheet, formatUpdateTrigger]);
   
-  // Check specific cell data
-  if (activeSheet?.data) {
-    if (activeSheet.data instanceof Map) {
-      console.log('A1 from Map:', activeSheet.data.get('A1'));
-    } else {
-      console.log('A1 from object:', activeSheet.data['A1']);
-    }
-  }
+  // Debug logging (minimal)
+  // console.log('Active sheet:', activeSheet);
 
   // Update sheets when currentSpreadsheet changes
   useEffect(() => {
@@ -329,6 +328,119 @@ const GoogleSheetsClone = () => {
     setZoomLevel(newZoom);
     showSuccess(`Zoomed to ${newZoom}%`);
     setShowZoomDropdown(false);
+  };
+
+  // Font functions
+  const fontFamilies = [
+    'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Comic Sans MS',
+    'Consolas', 'Courier New', 'Georgia', 'Helvetica', 'Impact', 'Lucida Console',
+    'Lucida Sans Unicode', 'Microsoft Sans Serif', 'Palatino Linotype',
+    'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'
+  ];
+
+  const fontSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+
+  const getCurrentFontFamily = () => {
+    if (selectedCell) {
+      const cellData = getLocalCellData(selectedCell);
+      return cellData.style?.fontFamily || 'Arial';
+    }
+    return 'Arial';
+  };
+
+  const getCurrentFontSize = () => {
+    if (selectedCell) {
+      const cellData = getLocalCellData(selectedCell);
+      return cellData.style?.fontSize || 10;
+    }
+    return 10;
+  };
+
+  const handleFontFamilyChange = (fontFamily) => {
+    if (selectedCell) {
+      formatCell({ fontFamily });
+      showSuccess(`Font changed to ${fontFamily}`);
+      setShowFontDropdown(false);
+    }
+  };
+
+  const handleFontSizeChange = (fontSize) => {
+    if (selectedCell) {
+      formatCell({ fontSize });
+      showSuccess(`Font size changed to ${fontSize}px`);
+      setShowFontSizeDropdown(false);
+    }
+  };
+
+  // Number formatting functions
+  const numberFormats = [
+    { label: 'Automatic', value: 'automatic', example: '1,000.12' },
+    { label: 'Plain text', value: 'text', example: 'Plain text' },
+    { label: 'Number', value: 'number', example: '1,000.12' },
+    { label: 'Percent', value: 'percent', example: '10.12%' },
+    { label: 'Scientific', value: 'scientific', example: '1.01E+03' },
+    { label: 'Accounting', value: 'accounting', example: '$ (1,000.12)' },
+    { label: 'Financial', value: 'financial', example: '(1,000.12)' },
+    { label: 'Currency', value: 'currency', example: '$1,000.12' },
+    { label: 'Currency rounded', value: 'currency_rounded', example: '$1,000' },
+    { label: 'Date', value: 'date', example: '9/26/2008' },
+    { label: 'Time', value: 'time', example: '3:59:00 PM' },
+    { label: 'Date time', value: 'datetime', example: '9/26/2008 15:59:00' },
+    { label: 'Duration', value: 'duration', example: '24:01:00' },
+  ];
+
+  const getCurrentNumberFormat = () => {
+    if (selectedCell) {
+      const cellData = getLocalCellData(selectedCell);
+      return cellData.style?.numberFormat || 'automatic';
+    }
+    return 'automatic';
+  };
+
+  const getCurrentDecimalPlaces = () => {
+    if (selectedCell) {
+      const cellData = getLocalCellData(selectedCell);
+      return cellData.style?.decimalPlaces || 2;
+    }
+    return 2;
+  };
+
+  const handleNumberFormatChange = (format) => {
+    if (selectedCell) {
+      formatCell({ numberFormat: format });
+      showSuccess(`Number format changed to ${format}`);
+      setShowNumberFormatDropdown(false);
+    }
+  };
+
+  const handleCurrencyFormat = () => {
+    if (selectedCell) {
+      formatCell({ numberFormat: 'currency' });
+      showSuccess('Applied currency format');
+    }
+  };
+
+  const handlePercentageFormat = () => {
+    if (selectedCell) {
+      formatCell({ numberFormat: 'percent' });
+      showSuccess('Applied percentage format');
+    }
+  };
+
+  const handleIncreaseDecimalPlaces = () => {
+    if (selectedCell) {
+      const currentPlaces = getCurrentDecimalPlaces();
+      formatCell({ decimalPlaces: Math.min(currentPlaces + 1, 10) });
+      showSuccess(`Increased decimal places to ${Math.min(currentPlaces + 1, 10)}`);
+    }
+  };
+
+  const handleDecreaseDecimalPlaces = () => {
+    if (selectedCell) {
+      const currentPlaces = getCurrentDecimalPlaces();
+      formatCell({ decimalPlaces: Math.max(currentPlaces - 1, 0) });
+      showSuccess(`Decreased decimal places to ${Math.max(currentPlaces - 1, 0)}`);
+    }
   };
 
   // Virtual scrolling
@@ -562,17 +674,6 @@ const GoogleSheetsClone = () => {
   // Local function to get cell data from local state
   const getLocalCellData = (cellId) => {
     const cellData = data[cellId];
-    console.log(`Getting cell data for ${cellId}:`, cellData);
-    console.log('Available data keys:', Object.keys(data));
-    console.log('Raw data object:', data);
-    console.log('Specific cell data:', data[cellId]);
-    
-    // If cellData exists but has no value, check if it has any properties
-    if (cellData && Object.keys(cellData).length > 0) {
-      console.log('Cell data properties:', Object.keys(cellData));
-      console.log('Cell data values:', Object.values(cellData));
-    }
-    
     return cellData || { value: "", formula: "", style: {} };
   };
 
@@ -857,7 +958,7 @@ const GoogleSheetsClone = () => {
     return rows.join('\n');
   };
 
-  // Close filter menu and zoom dropdown when clicking outside
+  // Close filter menu, zoom dropdown, and font dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterMenuOpen && !event.target.closest(".filter-menu")) {
@@ -866,13 +967,22 @@ const GoogleSheetsClone = () => {
       if (showZoomDropdown && !event.target.closest(".zoom-dropdown")) {
         setShowZoomDropdown(false);
       }
+      if (showFontDropdown && !event.target.closest(".font-dropdown")) {
+        setShowFontDropdown(false);
+      }
+      if (showFontSizeDropdown && !event.target.closest(".font-size-dropdown")) {
+        setShowFontSizeDropdown(false);
+      }
+      if (showNumberFormatDropdown && !event.target.closest(".number-format-dropdown")) {
+        setShowNumberFormatDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [filterMenuOpen, showZoomDropdown]);
+  }, [filterMenuOpen, showZoomDropdown, showFontDropdown, showFontSizeDropdown, showNumberFormatDropdown]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -886,6 +996,9 @@ const GoogleSheetsClone = () => {
         setShowFormatMenu(false);
         setShowDataMenu(false);
         setShowZoomDropdown(false);
+        setShowFontDropdown(false);
+        setShowFontSizeDropdown(false);
+        setShowNumberFormatDropdown(false);
         setActiveMenu(null);
         return;
       }
@@ -911,7 +1024,7 @@ const GoogleSheetsClone = () => {
             console.log('Cmd+V pressed, calling handlePaste');
             // Use setTimeout to ensure the paste happens after any other processing
             setTimeout(() => {
-              handlePaste();
+            handlePaste();
             }, 0);
             break;
           case 'z':
@@ -1423,15 +1536,23 @@ const GoogleSheetsClone = () => {
         if (!newData[selectedCell]) {
           newData[selectedCell] = { value: "", formula: "", style: {} };
         }
+        const currentStyle = newData[selectedCell].style || {};
+        const updatedStyle = { ...currentStyle, ...style };
+        
         newData[selectedCell] = {
           ...newData[selectedCell],
-          style: { ...newData[selectedCell].style, ...style },
+          style: updatedStyle,
         };
+        
         return { ...sheet, data: newData };
       }
       return sheet;
     });
+
     setSheets(newSheets);
+    
+    // Force re-render by updating trigger
+    setFormatUpdateTrigger(prev => prev + 1);
   };
 
   const getCellStyle = (cellId) => {
@@ -1439,15 +1560,63 @@ const GoogleSheetsClone = () => {
     if (!cellData || !cellData.style) return {};
 
     const style = {};
-    if (cellData.style.bold) style.fontWeight = "bold";
-    if (cellData.style.italic) style.fontStyle = "italic";
+    if (cellData.style.fontFamily) style.fontFamily = cellData.style.fontFamily;
+    if (cellData.style.fontSize) style.fontSize = `${cellData.style.fontSize}px`;
+    if (cellData.style.fontWeight) style.fontWeight = cellData.style.fontWeight;
+    if (cellData.style.fontStyle) style.fontStyle = cellData.style.fontStyle;
     if (cellData.style.underline) style.textDecoration = "underline";
+    if (cellData.style.textDecoration) style.textDecoration = cellData.style.textDecoration;
     if (cellData.style.color) style.color = cellData.style.color;
     if (cellData.style.backgroundColor)
       style.backgroundColor = cellData.style.backgroundColor;
     if (cellData.style.textAlign) style.textAlign = cellData.style.textAlign;
 
     return style;
+  };
+
+  const formatCellValue = (cellData) => {
+    if (!cellData || !cellData.style?.numberFormat || cellData.style.numberFormat === 'automatic') {
+      return cellData?.value || '';
+    }
+
+    const value = cellData.value;
+    const numberFormat = cellData.style.numberFormat;
+    const decimalPlaces = cellData.style.decimalPlaces || 2;
+
+    // Convert string to number if it's a valid number
+    let numericValue = value;
+    if (typeof value === 'string' && !isNaN(value) && value.trim() !== '') {
+      numericValue = parseFloat(value);
+    }
+
+    if (typeof numericValue !== 'number' || isNaN(numericValue)) {
+      return value;
+    }
+
+    switch (numberFormat) {
+      case 'currency':
+        return `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}`;
+      case 'currency_rounded':
+        return `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+      case 'percent':
+        return `${(numericValue * 100).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}%`;
+      case 'number':
+        return numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
+      case 'scientific':
+        return numericValue.toExponential(decimalPlaces);
+      case 'accounting':
+        return numericValue < 0 ? `($${Math.abs(numericValue).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })})` : `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}`;
+      case 'financial':
+        return numericValue < 0 ? `(${Math.abs(numericValue).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })})` : numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
+      case 'date':
+        return new Date(numericValue).toLocaleDateString();
+      case 'time':
+        return new Date(numericValue).toLocaleTimeString();
+      case 'datetime':
+        return new Date(numericValue).toLocaleString();
+      default:
+        return numericValue;
+    }
   };
 
   const handleCellClick = (cellId) => {
@@ -1919,9 +2088,9 @@ const GoogleSheetsClone = () => {
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              
+              </svg>
+            </button>
+
               <div className="relative">
                 <button 
                   onClick={() => setShowZoomDropdown(!showZoomDropdown)}
@@ -1941,12 +2110,12 @@ const GoogleSheetsClone = () => {
                         }`}
                       >
                         {level}%
-                      </button>
+              </button>
                     ))}
                   </div>
                 )}
-              </div>
-              
+            </div>
+
               <button 
                 onClick={handleZoomIn}
                 className="p-1 text-gray-600 hover:bg-gray-100 rounded"
@@ -1960,40 +2129,138 @@ const GoogleSheetsClone = () => {
               <div className="w-px h-4 bg-gray-300"></div>
             </div>
 
-            {/* Number Format */}
-            <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                Default
+            {/* Number Format Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowNumberFormatDropdown(!showNumberFormatDropdown);
+                }}
+                className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-16 text-left"
+              >
+                {numberFormats.find(f => f.value === getCurrentNumberFormat())?.label || '123'}
               </button>
-              <div className="w-px h-4 bg-gray-300"></div>
+              
+              {showNumberFormatDropdown && (
+                <div className="number-format-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">General</div>
+                    {numberFormats.filter(f => ['automatic', 'text'].includes(f.value)).map((format) => (
+                      <button
+                        key={format.value}
+                        onClick={() => handleNumberFormatChange(format.value)}
+                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{format.label}</span>
+                          <span className="text-xs text-gray-400">{format.example}</span>
+                        </div>
+                      </button>
+                    ))}
+                    
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Number</div>
+                    {numberFormats.filter(f => ['number', 'percent', 'scientific'].includes(f.value)).map((format) => (
+                      <button
+                        key={format.value}
+                        onClick={() => handleNumberFormatChange(format.value)}
+                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{format.label}</span>
+                          <span className="text-xs text-gray-400">{format.example}</span>
+                        </div>
+                      </button>
+                    ))}
+                    
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Currency</div>
+                    {numberFormats.filter(f => ['accounting', 'financial', 'currency', 'currency_rounded'].includes(f.value)).map((format) => (
+                      <button
+                        key={format.value}
+                        onClick={() => handleNumberFormatChange(format.value)}
+                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{format.label}</span>
+                          <span className="text-xs text-gray-400">{format.example}</span>
+                        </div>
+                      </button>
+                    ))}
+                    
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Date & time</div>
+                    {numberFormats.filter(f => ['date', 'time', 'datetime', 'duration'].includes(f.value)).map((format) => (
+                      <button
+                        key={format.value}
+                        onClick={() => handleNumberFormatChange(format.value)}
+                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{format.label}</span>
+                          <span className="text-xs text-gray-400">{format.example}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Currency/Percentage */}
-            <button className="p-2 hover:bg-gray-100 rounded">
+            {/* Currency Button */}
+            <button 
+              onClick={handleCurrencyFormat}
+              className={`p-2 rounded ${
+                getCurrentNumberFormat() === 'currency' ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+              }`}
+              title="Format as currency"
+            >
               <DollarSign size={16} className="text-gray-600" />
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
+            
+            {/* Percentage Button */}
+            <button 
+              onClick={handlePercentageFormat}
+              className={`p-2 rounded ${
+                getCurrentNumberFormat() === 'percent' ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+              }`}
+              title="Format as percent"
+            >
               <span className="text-sm text-gray-600">%</span>
             </button>
 
-            {/* Decimal places */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            {/* Decimal places - Decrease */}
+            <button 
+              onClick={handleDecreaseDecimalPlaces}
+              className="p-2 hover:bg-gray-100 rounded"
+              title="Decrease decimal places"
+            >
+              <div className="flex items-center">
+                <span className="text-xs text-gray-600">.00</span>
+                <svg className="w-3 h-3 text-gray-600 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
+              </div>
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            
+            {/* Decimal places - Increase */}
+            <button 
+              onClick={handleIncreaseDecimalPlaces}
+              className="p-2 hover:bg-gray-100 rounded"
+              title="Increase decimal places"
+            >
+              <div className="flex items-center">
+                <span className="text-xs text-gray-600">.0</span>
+                <svg className="w-3 h-3 text-gray-600 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
+              </div>
             </button>
 
             {/* Separator */}
@@ -2001,33 +2268,69 @@ const GoogleSheetsClone = () => {
 
             {/* Font controls */}
             <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                Arial
+              {/* Font Family Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Font dropdown clicked, current state:', showFontDropdown);
+                    setShowFontDropdown(!showFontDropdown);
+                  }}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-20 text-left"
+                  style={{ fontFamily: getCurrentFontFamily() }}
+                >
+                  {getCurrentFontFamily()}
               </button>
-              <div className="flex items-center">
-                <button className="px-1 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                  10
+                
+                {showFontDropdown && (
+                  <div className="font-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+                    {console.log('Rendering font dropdown with fonts:', fontFamilies)}
+                    {fontFamilies.map((font) => (
+                      <button
+                        key={font}
+                        onClick={() => handleFontFamilyChange(font)}
+                        className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                          font === getCurrentFontFamily() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                        style={{ fontFamily: font }}
+                      >
+                        {font}
                 </button>
-                <div className="flex flex-col">
-                  <button className="p-0.5 hover:bg-gray-100 rounded">
-                    <svg
-                      className="w-3 h-3 text-gray-600"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 8l-6 6h12z" />
-                    </svg>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Font Size Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Font size dropdown clicked, current state:', showFontSizeDropdown);
+                    setShowFontSizeDropdown(!showFontSizeDropdown);
+                  }}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-8 text-center"
+                >
+                  {getCurrentFontSize()}
                   </button>
-                  <button className="p-0.5 hover:bg-gray-100 rounded">
-                    <svg
-                      className="w-3 h-3 text-gray-600"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12 16l6-6H6z" />
-                    </svg>
+                
+                {showFontSizeDropdown && (
+                  <div className="font-size-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-16 max-h-48 overflow-y-auto">
+                    {fontSizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => handleFontSizeChange(size)}
+                        className={`block w-full text-center px-3 py-2 text-sm hover:bg-gray-100 ${
+                          size === getCurrentFontSize() ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        {size}
                   </button>
+                    ))}
                 </div>
+                )}
               </div>
             </div>
 
@@ -2694,8 +2997,8 @@ const GoogleSheetsClone = () => {
                                    <option value="is_not_empty">Is not empty</option>
                                    <option value="is_one_of">Is one of</option>
                                  </select>
-                               </div>
-
+                                 </div>
+                                 
                                {/* Filter Value Input (for text/number filters) */}
                                {!['is_empty', 'is_not_empty', 'is_one_of'].includes(columnFilters[columnName]?.type || 'contains') && (
                                  <div className="mb-3">
@@ -2720,41 +3023,41 @@ const GoogleSheetsClone = () => {
                                      Select values to include:
                                    </div>
                                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2">
-                                     {getColumnFilterOptions(columnName).map((value, index) => (
+                                 {getColumnFilterOptions(columnName).map((value, index) => (
                                        <label key={index} className="flex items-center space-x-2 text-sm mb-1">
-                                         <input
-                                           type="checkbox"
-                                           checked={columnFilters[columnName]?.values?.includes(value) || false}
-                                           onChange={(e) => {
-                                             const currentValues = columnFilters[columnName]?.values || [];
-                                             const newValues = e.target.checked
-                                               ? [...currentValues, value]
-                                               : currentValues.filter(v => v !== value);
+                                     <input
+                                       type="checkbox"
+                                       checked={columnFilters[columnName]?.values?.includes(value) || false}
+                                       onChange={(e) => {
+                                         const currentValues = columnFilters[columnName]?.values || [];
+                                         const newValues = e.target.checked
+                                           ? [...currentValues, value]
+                                           : currentValues.filter(v => v !== value);
                                              applyColumnFilter(columnName, 'is_one_of', '', newValues);
-                                           }}
-                                           className="rounded"
-                                         />
+                                       }}
+                                       className="rounded"
+                                     />
                                          <span className="truncate">{value || '(empty)'}</span>
-                                       </label>
-                                     ))}
+                                   </label>
+                                 ))}
                                    </div>
                                    <div className="flex gap-2 mt-2">
-                                     <button
-                                       onClick={() => {
-                                         const allValues = getColumnFilterOptions(columnName);
+                                   <button
+                                     onClick={() => {
+                                       const allValues = getColumnFilterOptions(columnName);
                                          applyColumnFilter(columnName, 'is_one_of', '', allValues);
-                                       }}
-                                       className="text-xs text-blue-600 hover:text-blue-800"
-                                     >
-                                       Select all
-                                     </button>
-                                     <button
+                                     }}
+                                     className="text-xs text-blue-600 hover:text-blue-800"
+                                   >
+                                     Select all
+                                   </button>
+                                   <button
                                        onClick={() => applyColumnFilter(columnName, 'is_one_of', '', [])}
                                        className="text-xs text-blue-600 hover:text-blue-800"
-                                     >
-                                       Clear all
-                                     </button>
-                                   </div>
+                                   >
+                                     Clear all
+                                   </button>
+                                 </div>
                                  </div>
                                )}
                                
@@ -2900,11 +3203,7 @@ const GoogleSheetsClone = () => {
                                 className="px-1 text-xs truncate"
                                 style={getCellStyle(cellId)}
                               >
-                                {cellData
-                                  ? typeof cellData.value === "number"
-                                    ? cellData.value.toLocaleString()
-                                    : cellData.value
-                                  : ""}
+                                {formatCellValue(cellData)}
                               </div>
                             )}
                           </td>
