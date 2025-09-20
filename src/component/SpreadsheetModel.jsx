@@ -106,16 +106,15 @@ const GoogleSheetsClone = () => {
   const [showChartModal, setShowChartModal] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [chartType, setChartType] = useState("line");
-  const [filteredRows, setFilteredRows] = useState(new Set());
-  const [sortConfig, setSortConfig] = useState({
-    column: null,
-    direction: null,
-  });
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterColumn, setFilterColumn] = useState("A");
   const [filterValue, setFilterValue] = useState("");
   const [activeFilters, setActiveFilters] = useState({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  
+  // Zoom functionality
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [showZoomDropdown, setShowZoomDropdown] = useState(false);
   
   // Google Sheets-like filter states
   const [columnFilters, setColumnFilters] = useState({});
@@ -210,10 +209,10 @@ const GoogleSheetsClone = () => {
     return result;
   }, [data, visibleRows, scrollTop]);
 
-  // Filter functions
-  const applyFilter = useCallback((column, filterValue) => {
-    if (!filterValue) {
-      setActiveFilters((prev) => {
+  // Enhanced filter functions for Google Sheets-like behavior
+  const applyColumnFilter = useCallback((column, filterType, filterValue, filterValues = []) => {
+    if (!filterValue && filterValues.length === 0) {
+      setColumnFilters((prev) => {
         const newFilters = { ...prev };
         delete newFilters[column];
         return newFilters;
@@ -221,33 +220,116 @@ const GoogleSheetsClone = () => {
       return;
     }
 
-    setActiveFilters((prev) => ({
+    setColumnFilters((prev) => ({
       ...prev,
-      [column]: filterValue.toLowerCase(),
+      [column]: {
+        type: filterType,
+        value: filterValue,
+        values: filterValues,
+        enabled: true
+      }
     }));
   }, []);
 
-
   const isRowVisible = useCallback(
     (rowIndex) => {
-      if (Object.keys(activeFilters).length === 0) return true;
+      if (Object.keys(columnFilters).length === 0) return true;
 
-      for (const [column, filterValue] of Object.entries(activeFilters)) {
+      for (const [column, filter] of Object.entries(columnFilters)) {
+        if (!filter.enabled) continue;
+
         const colNum = getColumnNumber(column);
         const cellId = getColumnName(colNum) + (rowIndex + 1);
         const cellData = data[cellId];
-        const cellValue = cellData
-          ? (cellData.value || "").toString().toLowerCase()
-          : "";
+        const cellValue = cellData ? (cellData.value || "").toString() : "";
 
-        if (!cellValue.includes(filterValue)) {
-          return false;
+        let isVisible = false;
+
+        switch (filter.type) {
+          case 'contains':
+            isVisible = cellValue.toLowerCase().includes((filter.value || "").toLowerCase());
+            break;
+          case 'equals':
+            isVisible = cellValue.toLowerCase() === (filter.value || "").toLowerCase();
+            break;
+          case 'starts_with':
+            isVisible = cellValue.toLowerCase().startsWith((filter.value || "").toLowerCase());
+            break;
+          case 'ends_with':
+            isVisible = cellValue.toLowerCase().endsWith((filter.value || "").toLowerCase());
+            break;
+          case 'greater_than':
+            isVisible = parseFloat(cellValue) > parseFloat(filter.value || 0);
+            break;
+          case 'less_than':
+            isVisible = parseFloat(cellValue) < parseFloat(filter.value || 0);
+            break;
+          case 'greater_equal':
+            isVisible = parseFloat(cellValue) >= parseFloat(filter.value || 0);
+            break;
+          case 'less_equal':
+            isVisible = parseFloat(cellValue) <= parseFloat(filter.value || 0);
+            break;
+          case 'is_empty':
+            isVisible = cellValue === "";
+            break;
+          case 'is_not_empty':
+            isVisible = cellValue !== "";
+            break;
+          case 'is_one_of':
+            isVisible = filter.values.some(val => cellValue.toLowerCase() === val.toLowerCase());
+            break;
+          default:
+            isVisible = true;
         }
+
+        if (!isVisible) return false;
       }
       return true;
     },
-    [activeFilters, data]
+    [columnFilters, data]
   );
+
+  // Legacy filter function for backward compatibility
+  const applyFilter = useCallback((column, filterValue) => {
+    applyColumnFilter(column, 'contains', filterValue);
+  }, [applyColumnFilter]);
+
+  const clearAllFilters = () => {
+    setColumnFilters({});
+    setShowFilterDropdown(null);
+    showSuccess('All filters cleared');
+  };
+
+  // Zoom functions
+  const zoomLevels = [50, 75, 90, 100, 125, 150, 175, 200, 250, 300];
+  
+  const handleZoomIn = () => {
+    const currentIndex = zoomLevels.indexOf(zoomLevel);
+    if (currentIndex < zoomLevels.length - 1) {
+      setZoomLevel(zoomLevels[currentIndex + 1]);
+      showSuccess(`Zoomed to ${zoomLevels[currentIndex + 1]}%`);
+    }
+  };
+
+  const handleZoomOut = () => {
+    const currentIndex = zoomLevels.indexOf(zoomLevel);
+    if (currentIndex > 0) {
+      setZoomLevel(zoomLevels[currentIndex - 1]);
+      showSuccess(`Zoomed to ${zoomLevels[currentIndex - 1]}%`);
+    }
+  };
+
+  const handleZoomToFit = () => {
+    setZoomLevel(100);
+    showSuccess('Zoomed to fit');
+  };
+
+  const handleZoomChange = (newZoom) => {
+    setZoomLevel(newZoom);
+    showSuccess(`Zoomed to ${newZoom}%`);
+    setShowZoomDropdown(false);
+  };
 
   // Virtual scrolling
   const handleScroll = useCallback(
@@ -681,37 +763,7 @@ const GoogleSheetsClone = () => {
     showSuccess('Filter applied');
   };
 
-  // Google Sheets-like filter functions
-  const toggleColumnFilter = (column) => {
-    if (columnFilters[column]) {
-      // Remove filter
-      const newFilters = { ...columnFilters };
-      delete newFilters[column];
-      setColumnFilters(newFilters);
-      showSuccess(`Filter removed from column ${column}`);
-    } else {
-      // Add filter
-      setColumnFilters({ ...columnFilters, [column]: { values: [], type: 'include' } });
-      setShowFilterDropdown(column);
-      showSuccess(`Filter added to column ${column}`);
-    }
-  };
-
-  const updateColumnFilter = (column, values, type = 'include') => {
-    setColumnFilters({
-      ...columnFilters,
-      [column]: { values, type }
-    });
-    setShowFilterDropdown(null);
-    showSuccess(`Filter updated for column ${column}`);
-  };
-
-  const clearAllFilters = () => {
-    setColumnFilters({});
-    setShowFilterDropdown(null);
-    showSuccess('All filters cleared');
-  };
-
+  // Get unique values for a column (for filter options)
   const getColumnFilterOptions = (column) => {
     const colNum = getColumnNumber(column);
     const values = new Set();
@@ -805,11 +857,14 @@ const GoogleSheetsClone = () => {
     return rows.join('\n');
   };
 
-  // Close filter menu when clicking outside
+  // Close filter menu and zoom dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterMenuOpen && !event.target.closest(".filter-menu")) {
         setFilterMenuOpen(false);
+      }
+      if (showZoomDropdown && !event.target.closest(".zoom-dropdown")) {
+        setShowZoomDropdown(false);
       }
     };
 
@@ -817,7 +872,7 @@ const GoogleSheetsClone = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [filterMenuOpen]);
+  }, [filterMenuOpen, showZoomDropdown]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -830,6 +885,7 @@ const GoogleSheetsClone = () => {
         setShowInsertMenu(false);
         setShowFormatMenu(false);
         setShowDataMenu(false);
+        setShowZoomDropdown(false);
         setActiveMenu(null);
         return;
       }
@@ -882,6 +938,30 @@ const GoogleSheetsClone = () => {
             event.preventDefault();
             handleItalic();
             break;
+          case '=':
+          case '+':
+            event.preventDefault();
+            handleZoomIn();
+            break;
+          case '-':
+            event.preventDefault();
+            handleZoomOut();
+            break;
+          case '0':
+            event.preventDefault();
+            handleZoomToFit();
+            break;
+        }
+      }
+
+      // Plus/Minus keys for zoom (without Ctrl/Cmd)
+      if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key === '+' || event.key === '=') {
+          event.preventDefault();
+          handleZoomIn();
+        } else if (event.key === '-') {
+          event.preventDefault();
+          handleZoomOut();
         }
       }
     };
@@ -1697,12 +1777,34 @@ const GoogleSheetsClone = () => {
             </button>
               {showViewMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                    onClick={() => {
+                      handleZoomIn();
+                      setShowViewMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Zoom In
                   </button>
-                  <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                    onClick={() => {
+                      handleZoomOut();
+                      setShowViewMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Zoom Out
                   </button>
+                  <button 
+                    onClick={() => {
+                      handleZoomToFit();
+                      setShowViewMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
+                    Zoom to Fit
+                  </button>
+                  <div className="border-t my-1"></div>
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
                     Show Grid Lines
                   </button>
@@ -1808,25 +1910,53 @@ const GoogleSheetsClone = () => {
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
-            {/* Format Painter */}
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <svg
-                className="w-4 h-4 text-gray-600"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M18.41 4.16l-1.2 1.2-2.83-2.83 1.2-1.2c.39-.39 1.03-.39 1.42 0l1.41 1.41c.39.39.39 1.03 0 1.42zM5.93 12.93l2.83 2.83L8.54 17c-.39.39-.39 1.03 0 1.42l1.41 1.41c.39.39 1.03.39 1.42 0l1.2-1.2 2.83 2.83-8.24 8.24c-.39.39-1.03.39-1.42 0l-1.41-1.41c-.39-.39-.39-1.03 0-1.42l8.24-8.24zM3 3l2 2-1.5 1.5L1.5 4.5 3 3z" />
-              </svg>
-            </button>
-
-            {/* Separator */}
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-            {/* Zoom */}
+            {/* Zoom Controls */}
             <div className="flex items-center space-x-1">
-              <button className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">
-                100%
+              <button 
+                onClick={handleZoomOut}
+                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                title="Zoom Out"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
               </button>
+              
+              <div className="relative">
+                <button 
+                  onClick={() => setShowZoomDropdown(!showZoomDropdown)}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-12"
+                >
+                  {zoomLevel}%
+                </button>
+                
+                {showZoomDropdown && (
+                  <div className="zoom-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-32">
+                    {zoomLevels.map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => handleZoomChange(level)}
+                        className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                          level === zoomLevel ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                      >
+                        {level}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={handleZoomIn}
+                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                title="Zoom In"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </button>
+              
               <div className="w-px h-4 bg-gray-300"></div>
             </div>
 
@@ -2044,16 +2174,16 @@ const GoogleSheetsClone = () => {
               <button
                 onClick={() => setFilterMenuOpen(!filterMenuOpen)}
                 className={`p-2 rounded flex items-center ${
-                  Object.keys(activeFilters).length > 0
+                  Object.keys(columnFilters).length > 0
                     ? "bg-blue-100 text-blue-600"
                     : "hover:bg-gray-100"
                 }`}
                 title="Create a filter"
               >
                 <Filter size={16} />
-                {Object.keys(activeFilters).length > 0 && (
+                {Object.keys(columnFilters).length > 0 && (
                   <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
-                    {Object.keys(activeFilters).length}
+                    {Object.keys(columnFilters).length}
                   </span>
                 )}
               </button>
@@ -2270,23 +2400,24 @@ const GoogleSheetsClone = () => {
                     </button>
                   </div>
 
-                  {Object.keys(activeFilters).length > 0 && (
+                  {Object.keys(columnFilters).length > 0 && (
                     <div className="border-t pt-3">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                         Active Filters:
                       </h4>
                       <div className="space-y-1">
-                        {Object.entries(activeFilters).map(
-                          ([column, value]) => (
+                        {Object.entries(columnFilters).map(
+                          ([column, filter]) => (
                             <div
                               key={column}
                               className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
                             >
                               <span>
-                                {column}: "{value}"
+                                {column}: {filter.type.replace('_', ' ')} {filter.value && `"${filter.value}"`}
+                                {filter.values && filter.values.length > 0 && `(${filter.values.length} values)`}
                               </span>
                               <button
-                                onClick={() => applyFilter(column, "")}
+                                onClick={() => applyColumnFilter(column, '', '', [])}
                                 className="text-red-500 hover:text-red-700"
                               >
                                 <X size={12} />
@@ -2463,7 +2594,15 @@ const GoogleSheetsClone = () => {
         
         {/* Google Sheets Style Spreadsheet */}
         <div className="flex-1 overflow-auto bg-white mb-12" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-          <div className="relative">
+          <div 
+            className="relative"
+            style={{ 
+              transform: `scale(${zoomLevel / 100})`,
+              transformOrigin: 'top left',
+              width: `${100 / (zoomLevel / 100)}%`,
+              height: `${100 / (zoomLevel / 100)}%`
+            }}
+          >
              <table className="min-w-full border-collapse">
                <thead className="sticky top-0 z-20">
                  <tr className="bg-gray-50">
@@ -2498,12 +2637,14 @@ const GoogleSheetsClone = () => {
                            <button
                              onClick={(e) => {
                                e.stopPropagation();
-                               toggleColumnFilter(columnName);
+                               setShowFilterDropdown(showFilterDropdown === columnName ? null : columnName);
                              }}
-                             className="opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity"
+                             className={`opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity ${
+                               hasColumnFilter ? 'opacity-100' : ''
+                             }`}
                              title="Filter"
                            >
-                             <Filter size={12} className="text-gray-600" />
+                             <Filter size={12} className={hasColumnFilter ? 'text-blue-600' : 'text-gray-600'} />
                            </button>
                            
                            {/* Resize handle */}
@@ -2516,11 +2657,11 @@ const GoogleSheetsClone = () => {
                            />
                          </div>
                          
-                         {/* Filter dropdown */}
+                         {/* Enhanced Filter dropdown */}
                          {showFilterDropdown === columnName && (
-                           <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+                           <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
                              <div className="p-3">
-                               <div className="flex items-center justify-between mb-2">
+                               <div className="flex items-center justify-between mb-3">
                                  <h4 className="font-medium text-sm">Filter by {columnName}</h4>
                                  <button
                                    onClick={() => setShowFilterDropdown(null)}
@@ -2530,46 +2671,113 @@ const GoogleSheetsClone = () => {
                                  </button>
                                </div>
                                
-                               <div className="space-y-2">
-                                 <div className="text-xs text-gray-600 mb-2">
-                                   Show items where the value is:
-                                 </div>
-                                 
-                                 {getColumnFilterOptions(columnName).map((value, index) => (
-                                   <label key={index} className="flex items-center space-x-2 text-sm">
-                                     <input
-                                       type="checkbox"
-                                       checked={columnFilters[columnName]?.values?.includes(value) || false}
-                                       onChange={(e) => {
-                                         const currentValues = columnFilters[columnName]?.values || [];
-                                         const newValues = e.target.checked
-                                           ? [...currentValues, value]
-                                           : currentValues.filter(v => v !== value);
-                                         updateColumnFilter(columnName, newValues);
-                                       }}
-                                       className="rounded"
-                                     />
-                                     <span className="truncate">{value}</span>
-                                   </label>
-                                 ))}
-                                 
-                                 <div className="border-t pt-2 mt-2">
-                                   <button
-                                     onClick={() => {
-                                       const allValues = getColumnFilterOptions(columnName);
-                                       updateColumnFilter(columnName, allValues);
+                               {/* Filter Type Selection */}
+                               <div className="mb-3">
+                                 <label className="block text-xs font-medium text-gray-700 mb-1">Filter type:</label>
+                                 <select
+                                   value={columnFilters[columnName]?.type || 'contains'}
+                                   onChange={(e) => {
+                                     const currentFilter = columnFilters[columnName];
+                                     applyColumnFilter(columnName, e.target.value, currentFilter?.value || '', currentFilter?.values || []);
+                                   }}
+                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                 >
+                                   <option value="contains">Contains</option>
+                                   <option value="equals">Equals</option>
+                                   <option value="starts_with">Starts with</option>
+                                   <option value="ends_with">Ends with</option>
+                                   <option value="greater_than">Greater than</option>
+                                   <option value="less_than">Less than</option>
+                                   <option value="greater_equal">Greater than or equal</option>
+                                   <option value="less_equal">Less than or equal</option>
+                                   <option value="is_empty">Is empty</option>
+                                   <option value="is_not_empty">Is not empty</option>
+                                   <option value="is_one_of">Is one of</option>
+                                 </select>
+                               </div>
+
+                               {/* Filter Value Input (for text/number filters) */}
+                               {!['is_empty', 'is_not_empty', 'is_one_of'].includes(columnFilters[columnName]?.type || 'contains') && (
+                                 <div className="mb-3">
+                                   <label className="block text-xs font-medium text-gray-700 mb-1">Filter value:</label>
+                                   <input
+                                     type="text"
+                                     value={columnFilters[columnName]?.value || ''}
+                                     onChange={(e) => {
+                                       const currentFilter = columnFilters[columnName];
+                                       applyColumnFilter(columnName, currentFilter?.type || 'contains', e.target.value, currentFilter?.values || []);
                                      }}
-                                     className="text-xs text-blue-600 hover:text-blue-800"
-                                   >
-                                     Select all
-                                   </button>
-                                   <button
-                                     onClick={() => updateColumnFilter(columnName, [])}
-                                     className="text-xs text-blue-600 hover:text-blue-800 ml-4"
-                                   >
-                                     Clear all
-                                   </button>
+                                     placeholder="Enter filter value..."
+                                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                   />
                                  </div>
+                               )}
+
+                               {/* Value Selection (for is_one_of filter) */}
+                               {columnFilters[columnName]?.type === 'is_one_of' && (
+                                 <div className="mb-3">
+                                   <div className="text-xs text-gray-600 mb-2">
+                                     Select values to include:
+                                   </div>
+                                   <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2">
+                                     {getColumnFilterOptions(columnName).map((value, index) => (
+                                       <label key={index} className="flex items-center space-x-2 text-sm mb-1">
+                                         <input
+                                           type="checkbox"
+                                           checked={columnFilters[columnName]?.values?.includes(value) || false}
+                                           onChange={(e) => {
+                                             const currentValues = columnFilters[columnName]?.values || [];
+                                             const newValues = e.target.checked
+                                               ? [...currentValues, value]
+                                               : currentValues.filter(v => v !== value);
+                                             applyColumnFilter(columnName, 'is_one_of', '', newValues);
+                                           }}
+                                           className="rounded"
+                                         />
+                                         <span className="truncate">{value || '(empty)'}</span>
+                                       </label>
+                                     ))}
+                                   </div>
+                                   <div className="flex gap-2 mt-2">
+                                     <button
+                                       onClick={() => {
+                                         const allValues = getColumnFilterOptions(columnName);
+                                         applyColumnFilter(columnName, 'is_one_of', '', allValues);
+                                       }}
+                                       className="text-xs text-blue-600 hover:text-blue-800"
+                                     >
+                                       Select all
+                                     </button>
+                                     <button
+                                       onClick={() => applyColumnFilter(columnName, 'is_one_of', '', [])}
+                                       className="text-xs text-blue-600 hover:text-blue-800"
+                                     >
+                                       Clear all
+                                     </button>
+                                   </div>
+                                 </div>
+                               )}
+                               
+                               {/* Action Buttons */}
+                               <div className="flex gap-2 pt-2 border-t">
+                                 <button
+                                   onClick={() => {
+                                     applyColumnFilter(columnName, columnFilters[columnName]?.type || 'contains', columnFilters[columnName]?.value || '', columnFilters[columnName]?.values || []);
+                                     setShowFilterDropdown(null);
+                                   }}
+                                   className="flex-1 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                                 >
+                                   Apply
+                                 </button>
+                                 <button
+                                   onClick={() => {
+                                     applyColumnFilter(columnName, '', '', []);
+                                     setShowFilterDropdown(null);
+                                   }}
+                                   className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                                 >
+                                   Clear
+                                 </button>
                                </div>
                              </div>
                            </div>
