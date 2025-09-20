@@ -2462,7 +2462,7 @@ const GoogleSheetsClone = () => {
         )}
         
         {/* Google Sheets Style Spreadsheet */}
-        <div className="flex-1 overflow-auto bg-white" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        <div className="flex-1 overflow-auto bg-white mb-12" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <div className="relative">
              <table className="min-w-full border-collapse">
                <thead className="sticky top-0 z-20">
