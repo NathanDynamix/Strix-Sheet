@@ -5,10 +5,10 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useSpreadsheet } from '../context/SpreadsheetContext';
-import { useToast } from '../context/ToastContext';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useSpreadsheet } from "../context/SpreadsheetContext";
+import { useToast } from "../context/ToastContext";
 import {
   AlignLeft,
   AlignCenter,
@@ -46,17 +46,17 @@ import {
   Line,
   Bar,
   Cell,
-  AreaChart ,
+  AreaChart,
 } from "recharts";
 
 const GoogleSheetsClone = () => {
   const { currentUser, logout } = useAuth();
-  const { 
-    currentSpreadsheet, 
-    updateCell, 
-    autoSave, 
+  const {
+    currentSpreadsheet,
+    updateCell,
+    autoSave,
     getCurrentSheetData,
-    getCellData 
+    getCellData,
   } = useSpreadsheet();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
@@ -88,7 +88,7 @@ const GoogleSheetsClone = () => {
   const getSheetData = () => {
     if (currentSpreadsheet && currentSpreadsheet.sheets) {
       const activeSheet = currentSpreadsheet.sheets.find(
-        sheet => sheet.id === currentSpreadsheet.activeSheetId
+        (sheet) => sheet.id === currentSpreadsheet.activeSheetId
       );
       if (activeSheet && activeSheet.data) {
         return Object.fromEntries(activeSheet.data);
@@ -116,36 +116,38 @@ const GoogleSheetsClone = () => {
   const [filterValue, setFilterValue] = useState("");
   const [activeFilters, setActiveFilters] = useState({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  
+
   // Zoom functionality
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showZoomDropdown, setShowZoomDropdown] = useState(false);
-  
+
   // Font functionality
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [showFontSizeDropdown, setShowFontSizeDropdown] = useState(false);
-  
+
   // Number formatting functionality
-  const [showNumberFormatDropdown, setShowNumberFormatDropdown] = useState(false);
+  const [showNumberFormatDropdown, setShowNumberFormatDropdown] =
+    useState(false);
   const [formatUpdateTrigger, setFormatUpdateTrigger] = useState(0);
-  const [showTextRotationDropdown, setShowTextRotationDropdown] = useState(false);
-  
+  const [showTextRotationDropdown, setShowTextRotationDropdown] =
+    useState(false);
+
   // Text rotation options
   const textRotationOptions = [
-    { label: '0°', value: 0 },
-    { label: '45°', value: 45 },
-    { label: '90°', value: 90 },
-    { label: '135°', value: 135 },
-    { label: '180°', value: 180 },
-    { label: 'Vertical', value: 'vertical' }
+    { label: "0°", value: 0 },
+    { label: "45°", value: 45 },
+    { label: "90°", value: 90 },
+    { label: "135°", value: 135 },
+    { label: "180°", value: 180 },
+    { label: "Vertical", value: "vertical" },
   ];
-  
+
   // Google Sheets-like filter states
   const [columnFilters, setColumnFilters] = useState({});
   const [filterDropdowns, setFilterDropdowns] = useState({});
   const [showFilterDropdown, setShowFilterDropdown] = useState(null);
   const [filterOptions, setFilterOptions] = useState({});
-  
+
   // Cell resizing states
   const [columnWidths, setColumnWidths] = useState({});
   const [rowHeights, setRowHeights] = useState({});
@@ -153,7 +155,10 @@ const GoogleSheetsClone = () => {
   const [resizeType, setResizeType] = useState(null); // 'column' or 'row'
   const [resizeTarget, setResizeTarget] = useState(null);
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
-  const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 });
+  const [resizeStartSize, setResizeStartSize] = useState({
+    width: 0,
+    height: 0,
+  });
   const [showResizeIndicator, setShowResizeIndicator] = useState(false);
   const [visibleRows, setVisibleRows] = useState(100); // Virtualization
   const [scrollTop, setScrollTop] = useState(0);
@@ -170,11 +175,11 @@ const GoogleSheetsClone = () => {
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showDataMenu, setShowDataMenu] = useState(false);
-  
+
   // Clipboard functionality
   const [clipboard, setClipboard] = useState(null);
   const [clipboardType, setClipboardType] = useState(null); // 'copy' or 'cut'
-  
+
   // Undo/Redo functionality
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -184,12 +189,16 @@ const GoogleSheetsClone = () => {
   const isNavigatingRef = useRef(false);
   const csvFileInputRef = useRef(null);
   const activeSheet = sheets.find((sheet) => sheet.id === activeSheetId);
-  
+
   // Use useMemo to ensure data updates when sheets change
   const data = useMemo(() => {
-    return activeSheet ? (activeSheet.data instanceof Map ? Object.fromEntries(activeSheet.data) : activeSheet.data) : {};
+    return activeSheet
+      ? activeSheet.data instanceof Map
+        ? Object.fromEntries(activeSheet.data)
+        : activeSheet.data
+      : {};
   }, [activeSheet, formatUpdateTrigger]);
-  
+
   // Debug logging (minimal)
   // console.log('Active sheet:', activeSheet);
 
@@ -211,13 +220,13 @@ const GoogleSheetsClone = () => {
       for (let col = 1; col <= 40; col++) {
         const cellId = getColumnName(col) + row;
         const cellData = data[cellId];
-        
+
         // Debug logging for specific cells
-        if (cellId === 'A1') {
+        if (cellId === "A1") {
           console.log(`MemoizedCellData for ${cellId}:`, cellData);
           console.log(`Data[${cellId}]:`, data[cellId]);
         }
-        
+
         result[cellId] = cellData || { value: "", formula: "", style: {} };
       }
     }
@@ -225,26 +234,29 @@ const GoogleSheetsClone = () => {
   }, [data, visibleRows, scrollTop]);
 
   // Enhanced filter functions for Google Sheets-like behavior
-  const applyColumnFilter = useCallback((column, filterType, filterValue, filterValues = []) => {
-    if (!filterValue && filterValues.length === 0) {
-      setColumnFilters((prev) => {
-        const newFilters = { ...prev };
-        delete newFilters[column];
-        return newFilters;
-      });
-      return;
-    }
-
-    setColumnFilters((prev) => ({
-      ...prev,
-      [column]: {
-        type: filterType,
-        value: filterValue,
-        values: filterValues,
-        enabled: true
+  const applyColumnFilter = useCallback(
+    (column, filterType, filterValue, filterValues = []) => {
+      if (!filterValue && filterValues.length === 0) {
+        setColumnFilters((prev) => {
+          const newFilters = { ...prev };
+          delete newFilters[column];
+          return newFilters;
+        });
+        return;
       }
-    }));
-  }, []);
+
+      setColumnFilters((prev) => ({
+        ...prev,
+        [column]: {
+          type: filterType,
+          value: filterValue,
+          values: filterValues,
+          enabled: true,
+        },
+      }));
+    },
+    []
+  );
 
   const isRowVisible = useCallback(
     (rowIndex) => {
@@ -261,38 +273,47 @@ const GoogleSheetsClone = () => {
         let isVisible = false;
 
         switch (filter.type) {
-          case 'contains':
-            isVisible = cellValue.toLowerCase().includes((filter.value || "").toLowerCase());
+          case "contains":
+            isVisible = cellValue
+              .toLowerCase()
+              .includes((filter.value || "").toLowerCase());
             break;
-          case 'equals':
-            isVisible = cellValue.toLowerCase() === (filter.value || "").toLowerCase();
+          case "equals":
+            isVisible =
+              cellValue.toLowerCase() === (filter.value || "").toLowerCase();
             break;
-          case 'starts_with':
-            isVisible = cellValue.toLowerCase().startsWith((filter.value || "").toLowerCase());
+          case "starts_with":
+            isVisible = cellValue
+              .toLowerCase()
+              .startsWith((filter.value || "").toLowerCase());
             break;
-          case 'ends_with':
-            isVisible = cellValue.toLowerCase().endsWith((filter.value || "").toLowerCase());
+          case "ends_with":
+            isVisible = cellValue
+              .toLowerCase()
+              .endsWith((filter.value || "").toLowerCase());
             break;
-          case 'greater_than':
+          case "greater_than":
             isVisible = parseFloat(cellValue) > parseFloat(filter.value || 0);
             break;
-          case 'less_than':
+          case "less_than":
             isVisible = parseFloat(cellValue) < parseFloat(filter.value || 0);
             break;
-          case 'greater_equal':
+          case "greater_equal":
             isVisible = parseFloat(cellValue) >= parseFloat(filter.value || 0);
             break;
-          case 'less_equal':
+          case "less_equal":
             isVisible = parseFloat(cellValue) <= parseFloat(filter.value || 0);
             break;
-          case 'is_empty':
+          case "is_empty":
             isVisible = cellValue === "";
             break;
-          case 'is_not_empty':
+          case "is_not_empty":
             isVisible = cellValue !== "";
             break;
-          case 'is_one_of':
-            isVisible = filter.values.some(val => cellValue.toLowerCase() === val.toLowerCase());
+          case "is_one_of":
+            isVisible = filter.values.some(
+              (val) => cellValue.toLowerCase() === val.toLowerCase()
+            );
             break;
           default:
             isVisible = true;
@@ -306,19 +327,22 @@ const GoogleSheetsClone = () => {
   );
 
   // Legacy filter function for backward compatibility
-  const applyFilter = useCallback((column, filterValue) => {
-    applyColumnFilter(column, 'contains', filterValue);
-  }, [applyColumnFilter]);
+  const applyFilter = useCallback(
+    (column, filterValue) => {
+      applyColumnFilter(column, "contains", filterValue);
+    },
+    [applyColumnFilter]
+  );
 
   const clearAllFilters = () => {
     setColumnFilters({});
     setShowFilterDropdown(null);
-    showSuccess('All filters cleared');
+    showSuccess("All filters cleared");
   };
 
   // Zoom functions
   const zoomLevels = [50, 75, 90, 100, 125, 150, 175, 200, 250, 300];
-  
+
   const handleZoomIn = () => {
     const currentIndex = zoomLevels.indexOf(zoomLevel);
     if (currentIndex < zoomLevels.length - 1) {
@@ -337,7 +361,7 @@ const GoogleSheetsClone = () => {
 
   const handleZoomToFit = () => {
     setZoomLevel(100);
-    showSuccess('Zoomed to fit');
+    showSuccess("Zoomed to fit");
   };
 
   const handleZoomChange = (newZoom) => {
@@ -348,10 +372,26 @@ const GoogleSheetsClone = () => {
 
   // Font functions
   const fontFamilies = [
-    'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Comic Sans MS',
-    'Consolas', 'Courier New', 'Georgia', 'Helvetica', 'Impact', 'Lucida Console',
-    'Lucida Sans Unicode', 'Microsoft Sans Serif', 'Palatino Linotype',
-    'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'
+    "Arial",
+    "Arial Black",
+    "Calibri",
+    "Cambria",
+    "Candara",
+    "Comic Sans MS",
+    "Consolas",
+    "Courier New",
+    "Georgia",
+    "Helvetica",
+    "Impact",
+    "Lucida Console",
+    "Lucida Sans Unicode",
+    "Microsoft Sans Serif",
+    "Palatino Linotype",
+    "Segoe UI",
+    "Tahoma",
+    "Times New Roman",
+    "Trebuchet MS",
+    "Verdana",
   ];
 
   const fontSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
@@ -359,9 +399,9 @@ const GoogleSheetsClone = () => {
   const getCurrentFontFamily = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      return cellData.style?.fontFamily || 'Arial';
+      return cellData.style?.fontFamily || "Arial";
     }
-    return 'Arial';
+    return "Arial";
   };
 
   const getCurrentFontSize = () => {
@@ -390,27 +430,27 @@ const GoogleSheetsClone = () => {
 
   // Number formatting functions
   const numberFormats = [
-    { label: 'Automatic', value: 'automatic', example: '1,000.12' },
-    { label: 'Plain text', value: 'text', example: 'Plain text' },
-    { label: 'Number', value: 'number', example: '1,000.12' },
-    { label: 'Percent', value: 'percent', example: '10.12%' },
-    { label: 'Scientific', value: 'scientific', example: '1.01E+03' },
-    { label: 'Accounting', value: 'accounting', example: '$ (1,000.12)' },
-    { label: 'Financial', value: 'financial', example: '(1,000.12)' },
-    { label: 'Currency', value: 'currency', example: '$1,000.12' },
-    { label: 'Currency rounded', value: 'currency_rounded', example: '$1,000' },
-    { label: 'Date', value: 'date', example: '9/26/2008' },
-    { label: 'Time', value: 'time', example: '3:59:00 PM' },
-    { label: 'Date time', value: 'datetime', example: '9/26/2008 15:59:00' },
-    { label: 'Duration', value: 'duration', example: '24:01:00' },
+    { label: "Automatic", value: "automatic", example: "1,000.12" },
+    { label: "Plain text", value: "text", example: "Plain text" },
+    { label: "Number", value: "number", example: "1,000.12" },
+    { label: "Percent", value: "percent", example: "10.12%" },
+    { label: "Scientific", value: "scientific", example: "1.01E+03" },
+    { label: "Accounting", value: "accounting", example: "$ (1,000.12)" },
+    { label: "Financial", value: "financial", example: "(1,000.12)" },
+    { label: "Currency", value: "currency", example: "$1,000.12" },
+    { label: "Currency rounded", value: "currency_rounded", example: "$1,000" },
+    { label: "Date", value: "date", example: "9/26/2008" },
+    { label: "Time", value: "time", example: "3:59:00 PM" },
+    { label: "Date time", value: "datetime", example: "9/26/2008 15:59:00" },
+    { label: "Duration", value: "duration", example: "24:01:00" },
   ];
 
   const getCurrentNumberFormat = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      return cellData.style?.numberFormat || 'automatic';
+      return cellData.style?.numberFormat || "automatic";
     }
-    return 'automatic';
+    return "automatic";
   };
 
   const getCurrentDecimalPlaces = () => {
@@ -431,15 +471,15 @@ const GoogleSheetsClone = () => {
 
   const handleCurrencyFormat = () => {
     if (selectedCell) {
-      formatCell({ numberFormat: 'currency' });
-      showSuccess('Applied currency format');
+      formatCell({ numberFormat: "currency" });
+      showSuccess("Applied currency format");
     }
   };
 
   const handlePercentageFormat = () => {
     if (selectedCell) {
-      formatCell({ numberFormat: 'percent' });
-      showSuccess('Applied percentage format');
+      formatCell({ numberFormat: "percent" });
+      showSuccess("Applied percentage format");
     }
   };
 
@@ -447,7 +487,9 @@ const GoogleSheetsClone = () => {
     if (selectedCell) {
       const currentPlaces = getCurrentDecimalPlaces();
       formatCell({ decimalPlaces: Math.min(currentPlaces + 1, 10) });
-      showSuccess(`Increased decimal places to ${Math.min(currentPlaces + 1, 10)}`);
+      showSuccess(
+        `Increased decimal places to ${Math.min(currentPlaces + 1, 10)}`
+      );
     }
   };
 
@@ -455,20 +497,26 @@ const GoogleSheetsClone = () => {
   const handleTextWrap = () => {
     if (selectedCell) {
       const currentCell = getLocalCellData(selectedCell);
-      const currentWrap = currentCell.style?.textWrap || 'nowrap';
-      const newWrap = currentWrap === 'wrap' ? 'nowrap' : 'wrap';
+      const currentWrap = currentCell.style?.textWrap || "nowrap";
+      const newWrap = currentWrap === "wrap" ? "nowrap" : "wrap";
       formatCell({ textWrap: newWrap });
-      showSuccess(newWrap === 'wrap' ? 'Text wrapping enabled' : 'Text wrapping disabled');
-      
+      showSuccess(
+        newWrap === "wrap" ? "Text wrapping enabled" : "Text wrapping disabled"
+      );
+
       // Force re-render to update row heights
-      setFormatUpdateTrigger(prev => prev + 1);
+      setFormatUpdateTrigger((prev) => prev + 1);
     }
   };
 
   const handleTextRotation = (rotation) => {
     if (selectedCell) {
       formatCell({ textRotation: rotation });
-      showSuccess(`Text rotated to ${rotation === 'vertical' ? 'vertical' : rotation + '°'}`);
+      showSuccess(
+        `Text rotated to ${
+          rotation === "vertical" ? "vertical" : rotation + "°"
+        }`
+      );
       setShowTextRotationDropdown(false);
     }
   };
@@ -477,7 +525,9 @@ const GoogleSheetsClone = () => {
     if (selectedCell) {
       const currentPlaces = getCurrentDecimalPlaces();
       formatCell({ decimalPlaces: Math.max(currentPlaces - 1, 0) });
-      showSuccess(`Decreased decimal places to ${Math.max(currentPlaces - 1, 0)}`);
+      showSuccess(
+        `Decreased decimal places to ${Math.max(currentPlaces - 1, 0)}`
+      );
     }
   };
 
@@ -499,11 +549,11 @@ const GoogleSheetsClone = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      showSuccess('You have been logged out successfully.');
-      navigate('/');
+      showSuccess("You have been logged out successfully.");
+      navigate("/");
     } catch (error) {
-      console.error('Logout error:', error);
-      showError('Failed to logout. Please try again.');
+      console.error("Logout error:", error);
+      showError("Failed to logout. Please try again.");
     }
   };
 
@@ -516,25 +566,25 @@ const GoogleSheetsClone = () => {
     setShowInsertMenu(false);
     setShowFormatMenu(false);
     setShowDataMenu(false);
-    
+
     // Toggle the clicked menu
     switch (menuName) {
-      case 'file':
+      case "file":
         setShowFileMenu(!showFileMenu);
         break;
-      case 'edit':
+      case "edit":
         setShowEditMenu(!showEditMenu);
         break;
-      case 'view':
+      case "view":
         setShowViewMenu(!showViewMenu);
         break;
-      case 'insert':
+      case "insert":
         setShowInsertMenu(!showInsertMenu);
         break;
-      case 'format':
+      case "format":
         setShowFormatMenu(!showFormatMenu);
         break;
-      case 'data':
+      case "data":
         setShowDataMenu(!showDataMenu);
         break;
     }
@@ -544,32 +594,32 @@ const GoogleSheetsClone = () => {
   // File menu functions
   const handleNewSpreadsheet = () => {
     setShowFileMenu(false);
-    showSuccess('Creating new spreadsheet...');
+    showSuccess("Creating new spreadsheet...");
     // Navigate to create new spreadsheet
-    navigate('/spreadsheet-dashboard');
+    navigate("/spreadsheet-dashboard");
   };
 
   const handleSaveSpreadsheet = async () => {
     setShowFileMenu(false);
     try {
       await autoSave();
-      showSuccess('Spreadsheet saved successfully!');
+      showSuccess("Spreadsheet saved successfully!");
     } catch (error) {
-      showError('Failed to save spreadsheet. Please try again.');
+      showError("Failed to save spreadsheet. Please try again.");
     }
   };
 
   const handleExportCSV = () => {
     setShowFileMenu(false);
     const csvData = convertToCSV();
-    const blob = new Blob([csvData], { type: 'text/csv' });
+    const blob = new Blob([csvData], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'spreadsheet.csv';
+    a.download = "spreadsheet.csv";
     a.click();
     window.URL.revokeObjectURL(url);
-    showSuccess('CSV exported successfully!');
+    showSuccess("CSV exported successfully!");
   };
 
   const handleImportCSV = () => {
@@ -580,8 +630,8 @@ const GoogleSheetsClone = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      showError('Please select a CSV file');
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      showError("Please select a CSV file");
       return;
     }
 
@@ -589,55 +639,57 @@ const GoogleSheetsClone = () => {
       const text = await file.text();
       const csvData = parseCSV(text);
       importCSVData(csvData);
-      showSuccess(`CSV imported successfully! ${csvData.length} rows imported.`);
+      showSuccess(
+        `CSV imported successfully! ${csvData.length} rows imported.`
+      );
     } catch (error) {
-      console.error('Error importing CSV:', error);
-      showError('Failed to import CSV file. Please check the file format.');
+      console.error("Error importing CSV:", error);
+      showError("Failed to import CSV file. Please check the file format.");
     }
 
     // Reset the file input
-    event.target.value = '';
+    event.target.value = "";
   };
 
   const parseCSV = (csvText) => {
-    const lines = csvText.split('\n');
+    const lines = csvText.split("\n");
     const data = [];
-    
+
     for (const line of lines) {
       if (line.trim()) {
         // Simple CSV parsing - handles basic cases
         const row = [];
-        let current = '';
+        let current = "";
         let inQuotes = false;
-        
+
         for (let i = 0; i < line.length; i++) {
           const char = line[i];
-          
+
           if (char === '"') {
             inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
+          } else if (char === "," && !inQuotes) {
             row.push(current.trim());
-            current = '';
+            current = "";
           } else {
             current += char;
           }
         }
-        
+
         // Add the last field
         row.push(current.trim());
-        
+
         // Remove quotes from fields
-        const cleanedRow = row.map(field => {
+        const cleanedRow = row.map((field) => {
           if (field.startsWith('"') && field.endsWith('"')) {
             return field.slice(1, -1);
           }
           return field;
         });
-        
+
         data.push(cleanedRow);
       }
     }
-    
+
     return data;
   };
 
@@ -647,7 +699,7 @@ const GoogleSheetsClone = () => {
     const newSheets = sheets.map((sheet) => {
       if (sheet.id === activeSheetId) {
         const newData = { ...sheet.data };
-        
+
         // Clear existing data in the import area (first 100 rows, first 26 columns)
         for (let row = 1; row <= Math.min(csvData.length, 100); row++) {
           for (let col = 1; col <= 26; col++) {
@@ -655,37 +707,38 @@ const GoogleSheetsClone = () => {
             delete newData[cellId];
           }
         }
-        
+
         // Import CSV data
         csvData.forEach((row, rowIndex) => {
           if (rowIndex >= 100) return; // Limit to 100 rows
-          
+
           row.forEach((cellValue, colIndex) => {
             if (colIndex >= 26) return; // Limit to 26 columns (A-Z)
-            
+
             const cellId = getColumnName(colIndex + 1) + (rowIndex + 1);
             newData[cellId] = {
               value: cellValue,
               formula: cellValue,
-              style: {}
+              style: {},
             };
           });
         });
-        
+
         return { ...sheet, data: newData };
       }
       return sheet;
     });
 
     setSheets(newSheets);
-    
+
     // Update backend if we have a current spreadsheet
     if (currentSpreadsheet) {
       try {
-        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
+        const sheetData =
+          newSheets.find((s) => s.id === activeSheetId)?.data || {};
         autoSave(activeSheetId, sheetData);
       } catch (error) {
-        console.error('Error auto-saving imported data:', error);
+        console.error("Error auto-saving imported data:", error);
       }
     }
   };
@@ -696,7 +749,7 @@ const GoogleSheetsClone = () => {
       setHistoryIndex(historyIndex - 1);
       const previousState = history[historyIndex - 1];
       // Restore previous state
-      showSuccess('Undo completed');
+      showSuccess("Undo completed");
     }
   };
 
@@ -705,7 +758,7 @@ const GoogleSheetsClone = () => {
       setHistoryIndex(historyIndex + 1);
       const nextState = history[historyIndex + 1];
       // Restore next state
-      showSuccess('Redo completed');
+      showSuccess("Redo completed");
     }
   };
 
@@ -724,8 +777,20 @@ const GoogleSheetsClone = () => {
   };
 
   // Function to update cell data locally and sync with backend
-  const updateCellLocal = async (cellId, value, formula = null, style = null) => {
-    console.log(`Updating cell ${cellId} with value:`, value, 'formula:', formula, 'style:', style);
+  const updateCellLocal = async (
+    cellId,
+    value,
+    formula = null,
+    style = null
+  ) => {
+    console.log(
+      `Updating cell ${cellId} with value:`,
+      value,
+      "formula:",
+      formula,
+      "style:",
+      style
+    );
     saveHistory();
 
     const newSheets = sheets.map((sheet) => {
@@ -745,7 +810,9 @@ const GoogleSheetsClone = () => {
           ...newData[cellId],
           formula: formulaValue,
           value: evaluatedValue,
-          style: style ? { ...newData[cellId].style, ...style } : newData[cellId].style,
+          style: style
+            ? { ...newData[cellId].style, ...style }
+            : newData[cellId].style,
         };
 
         newData[cellId] = cellData;
@@ -768,7 +835,7 @@ const GoogleSheetsClone = () => {
     });
 
     setSheets(newSheets);
-    console.log('Updated sheets:', newSheets);
+    console.log("Updated sheets:", newSheets);
 
     // Update backend if we have a current spreadsheet
     if (currentSpreadsheet) {
@@ -776,16 +843,19 @@ const GoogleSheetsClone = () => {
         const cellData = {
           value: formulaValue.startsWith("=") ? evaluatedValue : formulaValue,
           formula: formulaValue,
-          style: newSheets.find(s => s.id === activeSheetId)?.data[cellId]?.style || {}
+          style:
+            newSheets.find((s) => s.id === activeSheetId)?.data[cellId]
+              ?.style || {},
         };
-        
+
         await updateCell(activeSheetId, cellId, cellData);
-        
+
         // Auto-save the entire sheet data
-        const sheetData = newSheets.find(s => s.id === activeSheetId)?.data || {};
+        const sheetData =
+          newSheets.find((s) => s.id === activeSheetId)?.data || {};
         await autoSave(activeSheetId, sheetData);
       } catch (error) {
-        console.error('Error updating cell in backend:', error);
+        console.error("Error updating cell in backend:", error);
       }
     }
   };
@@ -793,72 +863,92 @@ const GoogleSheetsClone = () => {
   const handleCut = useCallback(() => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      console.log('Cutting cell data:', cellData);
-      
+      console.log("Cutting cell data:", cellData);
+
       // Store the cell data in clipboard
       setClipboard(cellData);
-      setClipboardType('cut');
-      
+      setClipboardType("cut");
+
       // Clear the cell and update formula bar
-      updateCellLocal(selectedCell, '');
-      setFormulaBarValue('');
-      
-      showSuccess('Cell cut to clipboard');
+      updateCellLocal(selectedCell, "");
+      setFormulaBarValue("");
+
+      showSuccess("Cell cut to clipboard");
     } else {
-      console.warn('No cell selected for cut operation');
-      showError('Please select a cell to cut');
+      console.warn("No cell selected for cut operation");
+      showError("Please select a cell to cut");
     }
-  }, [selectedCell, data, updateCellLocal, setFormulaBarValue, showSuccess, showError]);
+  }, [
+    selectedCell,
+    data,
+    updateCellLocal,
+    setFormulaBarValue,
+    showSuccess,
+    showError,
+  ]);
 
   const handleCopy = useCallback(() => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      console.log('Copying cell data:', cellData);
-      
+      console.log("Copying cell data:", cellData);
+
       setClipboard(cellData);
-      setClipboardType('copy');
-      showSuccess('Cell copied to clipboard');
+      setClipboardType("copy");
+      showSuccess("Cell copied to clipboard");
     } else {
-      console.warn('No cell selected for copy operation');
-      showError('Please select a cell to copy');
+      console.warn("No cell selected for copy operation");
+      showError("Please select a cell to copy");
     }
   }, [selectedCell, data, showSuccess, showError]);
 
   const handlePaste = useCallback(() => {
     if (clipboard && selectedCell) {
-      console.log('Pasting data:', clipboard);
-      
+      console.log("Pasting data:", clipboard);
+
       // Update both the cell data and formula bar with formula and styles
-      const formulaToPaste = clipboard.formula || clipboard.value || '';
-      updateCellLocal(selectedCell, clipboard.value || '', formulaToPaste, clipboard.style);
-      
+      const formulaToPaste = clipboard.formula || clipboard.value || "";
+      updateCellLocal(
+        selectedCell,
+        clipboard.value || "",
+        formulaToPaste,
+        clipboard.style
+      );
+
       // Update formula bar to show the pasted content
       setFormulaBarValue(formulaToPaste);
-      
-      if (clipboardType === 'cut') {
+
+      if (clipboardType === "cut") {
         setClipboard(null);
         setClipboardType(null);
       }
-      showSuccess('Cell pasted');
+      showSuccess("Cell pasted");
     } else if (!clipboard) {
-      console.warn('No data in clipboard for paste operation');
-      showError('No data to paste. Please copy a cell first.');
+      console.warn("No data in clipboard for paste operation");
+      showError("No data to paste. Please copy a cell first.");
     } else if (!selectedCell) {
-      console.warn('No cell selected for paste operation');
-      showError('Please select a cell to paste into.');
+      console.warn("No cell selected for paste operation");
+      showError("Please select a cell to paste into.");
     }
-  }, [clipboard, selectedCell, clipboardType, updateCellLocal, setFormulaBarValue, showSuccess, showError]);
+  }, [
+    clipboard,
+    selectedCell,
+    clipboardType,
+    updateCellLocal,
+    setFormulaBarValue,
+    showSuccess,
+    showError,
+  ]);
 
   // Insert menu functions
   const handleInsertRow = () => {
     setShowInsertMenu(false);
-    showSuccess('Row inserted');
+    showSuccess("Row inserted");
     // Implementation for inserting row
   };
 
   const handleInsertColumn = () => {
     setShowInsertMenu(false);
-    showSuccess('Column inserted');
+    showSuccess("Column inserted");
     // Implementation for inserting column
   };
 
@@ -866,47 +956,53 @@ const GoogleSheetsClone = () => {
   const handleBold = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      const newStyle = { ...cellData.style, fontWeight: cellData.style?.fontWeight === 'bold' ? 'normal' : 'bold' };
+      const newStyle = {
+        ...cellData.style,
+        fontWeight: cellData.style?.fontWeight === "bold" ? "normal" : "bold",
+      };
       // Apply the style directly to the cell
       formatCell({ fontWeight: newStyle.fontWeight });
-      showSuccess('Text formatting updated');
+      showSuccess("Text formatting updated");
     }
   };
 
   const handleItalic = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
-      const newStyle = { ...cellData.style, fontStyle: cellData.style?.fontStyle === 'italic' ? 'normal' : 'italic' };
+      const newStyle = {
+        ...cellData.style,
+        fontStyle: cellData.style?.fontStyle === "italic" ? "normal" : "italic",
+      };
       // Apply the style directly to the cell
       formatCell({ fontStyle: newStyle.fontStyle });
-      showSuccess('Text formatting updated');
+      showSuccess("Text formatting updated");
     }
   };
 
   // Data menu functions
   const handleSortAscending = () => {
     setShowDataMenu(false);
-    showSuccess('Data sorted in ascending order');
+    showSuccess("Data sorted in ascending order");
     // Implementation for sorting
   };
 
   const handleSortDescending = () => {
     setShowDataMenu(false);
-    showSuccess('Data sorted in descending order');
+    showSuccess("Data sorted in descending order");
     // Implementation for sorting
   };
 
   const handleFilter = () => {
     setShowDataMenu(false);
     setShowFilterModal(true);
-    showSuccess('Filter applied');
+    showSuccess("Filter applied");
   };
 
   // Get unique values for a column (for filter options)
   const getColumnFilterOptions = (column) => {
     const colNum = getColumnNumber(column);
     const values = new Set();
-    
+
     for (let row = 1; row <= 1000; row++) {
       const cellId = getColumnName(colNum) + row;
       const cellData = data[cellId];
@@ -914,7 +1010,7 @@ const GoogleSheetsClone = () => {
         values.add(cellData.value.toString());
       }
     }
-    
+
     return Array.from(values).sort();
   };
 
@@ -925,13 +1021,13 @@ const GoogleSheetsClone = () => {
 
   const getRowHeight = (row) => {
     const baseHeight = rowHeights[row] || 24; // Default height
-    
+
     // Check if any cell in this row has text wrapping enabled
     let maxRequiredHeight = baseHeight;
     for (let col = 1; col <= 40; col++) {
       const cellId = getColumnName(col) + row;
       const cellData = data[cellId];
-      if (cellData?.style?.textWrap === 'wrap' && cellData?.value) {
+      if (cellData?.style?.textWrap === "wrap" && cellData?.value) {
         const columnWidth = getColumnWidth(getColumnName(col));
         const text = cellData.value.toString();
         // More accurate height calculation based on character width
@@ -941,21 +1037,21 @@ const GoogleSheetsClone = () => {
         maxRequiredHeight = Math.max(maxRequiredHeight, requiredHeight);
       }
     }
-    
+
     return Math.max(baseHeight, maxRequiredHeight);
   };
 
   const handleColumnResize = (column, newWidth) => {
     setColumnWidths({
       ...columnWidths,
-      [column]: Math.max(50, newWidth) // Minimum width of 50px
+      [column]: Math.max(50, newWidth), // Minimum width of 50px
     });
   };
 
   const handleRowResize = (row, newHeight) => {
     setRowHeights({
       ...rowHeights,
-      [row]: Math.max(20, newHeight) // Minimum height of 20px
+      [row]: Math.max(20, newHeight), // Minimum height of 20px
     });
   };
 
@@ -964,26 +1060,26 @@ const GoogleSheetsClone = () => {
     setResizeType(type);
     setResizeTarget(target);
     setShowResizeIndicator(true);
-    
+
     // Capture initial position and size
     setResizeStartPos({ x: event.clientX, y: event.clientY });
-    
-    if (type === 'column') {
+
+    if (type === "column") {
       setResizeStartSize({ width: getColumnWidth(target), height: 0 });
-    } else if (type === 'row') {
+    } else if (type === "row") {
       setResizeStartSize({ width: 0, height: getRowHeight(target) });
     }
   };
 
   const handleMouseMove = (e) => {
     if (!isResizing || !resizeTarget) return;
-    
-    if (resizeType === 'column') {
+
+    if (resizeType === "column") {
       // Calculate delta from start position
       const deltaX = e.clientX - resizeStartPos.x;
       const newWidth = resizeStartSize.width + deltaX;
       handleColumnResize(resizeTarget, Math.max(50, newWidth));
-    } else if (resizeType === 'row') {
+    } else if (resizeType === "row") {
       // Calculate delta from start position
       const deltaY = e.clientY - resizeStartPos.y;
       const newHeight = resizeStartSize.height + deltaY;
@@ -1006,12 +1102,12 @@ const GoogleSheetsClone = () => {
       for (let col = 1; col <= 26; col++) {
         const cellId = getColumnName(col) + row;
         const cellData = data[cellId];
-        const value = cellData ? (cellData.value || '') : '';
+        const value = cellData ? cellData.value || "" : "";
         rowData.push(`"${value}"`);
       }
-      rows.push(rowData.join(','));
+      rows.push(rowData.join(","));
     }
-    return rows.join('\n');
+    return rows.join("\n");
   };
 
   // Close filter menu, zoom dropdown, and font dropdowns when clicking outside
@@ -1026,13 +1122,22 @@ const GoogleSheetsClone = () => {
       if (showFontDropdown && !event.target.closest(".font-dropdown")) {
         setShowFontDropdown(false);
       }
-      if (showFontSizeDropdown && !event.target.closest(".font-size-dropdown")) {
+      if (
+        showFontSizeDropdown &&
+        !event.target.closest(".font-size-dropdown")
+      ) {
         setShowFontSizeDropdown(false);
       }
-      if (showNumberFormatDropdown && !event.target.closest(".number-format-dropdown")) {
+      if (
+        showNumberFormatDropdown &&
+        !event.target.closest(".number-format-dropdown")
+      ) {
         setShowNumberFormatDropdown(false);
       }
-      if (showTextRotationDropdown && !event.target.closest(".text-rotation-dropdown")) {
+      if (
+        showTextRotationDropdown &&
+        !event.target.closest(".text-rotation-dropdown")
+      ) {
         setShowTextRotationDropdown(false);
       }
     };
@@ -1041,13 +1146,20 @@ const GoogleSheetsClone = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [filterMenuOpen, showZoomDropdown, showFontDropdown, showFontSizeDropdown, showNumberFormatDropdown, showTextRotationDropdown]);
+  }, [
+    filterMenuOpen,
+    showZoomDropdown,
+    showFontDropdown,
+    showFontSizeDropdown,
+    showNumberFormatDropdown,
+    showTextRotationDropdown,
+  ]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event) => {
       // Close all menus when pressing Escape
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setShowFileMenu(false);
         setShowEditMenu(false);
         setShowViewMenu(false);
@@ -1065,28 +1177,28 @@ const GoogleSheetsClone = () => {
       // Ctrl/Cmd + key combinations
       if (event.ctrlKey || event.metaKey) {
         switch (event.key.toLowerCase()) {
-          case 's':
+          case "s":
             event.preventDefault();
             handleSaveSpreadsheet();
             break;
-          case 'c':
+          case "c":
             event.preventDefault();
-            console.log('Cmd+C pressed, calling handleCopy');
+            console.log("Cmd+C pressed, calling handleCopy");
             handleCopy();
             break;
-          case 'x':
+          case "x":
             event.preventDefault();
             handleCut();
             break;
-          case 'v':
+          case "v":
             event.preventDefault();
-            console.log('Cmd+V pressed, calling handlePaste');
+            console.log("Cmd+V pressed, calling handlePaste");
             // Use setTimeout to ensure the paste happens after any other processing
             setTimeout(() => {
-            handlePaste();
+              handlePaste();
             }, 0);
             break;
-          case 'z':
+          case "z":
             event.preventDefault();
             if (event.shiftKey) {
               handleRedo();
@@ -1094,32 +1206,32 @@ const GoogleSheetsClone = () => {
               handleUndo();
             }
             break;
-          case 'y':
+          case "y":
             event.preventDefault();
             handleRedo();
             break;
-          case 'n':
+          case "n":
             event.preventDefault();
             handleNewSpreadsheet();
             break;
-          case 'b':
+          case "b":
             event.preventDefault();
             handleBold();
             break;
-          case 'i':
+          case "i":
             event.preventDefault();
             handleItalic();
             break;
-          case '=':
-          case '+':
+          case "=":
+          case "+":
             event.preventDefault();
             handleZoomIn();
             break;
-          case '-':
+          case "-":
             event.preventDefault();
             handleZoomOut();
             break;
-          case '0':
+          case "0":
             event.preventDefault();
             handleZoomToFit();
             break;
@@ -1128,31 +1240,31 @@ const GoogleSheetsClone = () => {
 
       // Plus/Minus keys for zoom (without Ctrl/Cmd)
       if (!event.ctrlKey && !event.metaKey && !event.altKey) {
-        if (event.key === '+' || event.key === '=') {
+        if (event.key === "+" || event.key === "=") {
           event.preventDefault();
           handleZoomIn();
-        } else if (event.key === '-') {
+        } else if (event.key === "-") {
           event.preventDefault();
           handleZoomOut();
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []); // Remove dependencies to prevent frequent recreation
 
   // Mouse events for resizing
   useEffect(() => {
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', stopResize);
-      
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", stopResize);
+
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', stopResize);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", stopResize);
       };
     }
   }, [isResizing, resizeType, resizeTarget]);
@@ -1539,8 +1651,6 @@ const GoogleSheetsClone = () => {
     }
   };
 
-
-
   const undo = () => {
     if (historyIndex > 0) {
       const newSheets = sheets.map((sheet) => {
@@ -1566,7 +1676,6 @@ const GoogleSheetsClone = () => {
       setHistoryIndex(historyIndex + 1);
     }
   };
-
 
   const deleteCell = () => {
     if (selectedCell) {
@@ -1597,21 +1706,21 @@ const GoogleSheetsClone = () => {
         }
         const currentStyle = newData[selectedCell].style || {};
         const updatedStyle = { ...currentStyle, ...style };
-        
+
         newData[selectedCell] = {
           ...newData[selectedCell],
           style: updatedStyle,
         };
-        
+
         return { ...sheet, data: newData };
       }
       return sheet;
     });
 
     setSheets(newSheets);
-    
+
     // Force re-render by updating trigger
-    setFormatUpdateTrigger(prev => prev + 1);
+    setFormatUpdateTrigger((prev) => prev + 1);
   };
 
   const getCellStyle = (cellId) => {
@@ -1620,35 +1729,38 @@ const GoogleSheetsClone = () => {
 
     const style = {};
     if (cellData.style.fontFamily) style.fontFamily = cellData.style.fontFamily;
-    if (cellData.style.fontSize) style.fontSize = `${cellData.style.fontSize}px`;
+    if (cellData.style.fontSize)
+      style.fontSize = `${cellData.style.fontSize}px`;
     if (cellData.style.fontWeight) style.fontWeight = cellData.style.fontWeight;
     if (cellData.style.fontStyle) style.fontStyle = cellData.style.fontStyle;
     if (cellData.style.underline) style.textDecoration = "underline";
-    if (cellData.style.textDecoration) style.textDecoration = cellData.style.textDecoration;
+    if (cellData.style.textDecoration)
+      style.textDecoration = cellData.style.textDecoration;
     if (cellData.style.color) style.color = cellData.style.color;
     if (cellData.style.backgroundColor)
       style.backgroundColor = cellData.style.backgroundColor;
     if (cellData.style.textAlign) style.textAlign = cellData.style.textAlign;
-    if (cellData.style.verticalAlign) style.verticalAlign = cellData.style.verticalAlign;
+    if (cellData.style.verticalAlign)
+      style.verticalAlign = cellData.style.verticalAlign;
     if (cellData.style.textWrap) {
-      if (cellData.style.textWrap === 'wrap') {
-        style.whiteSpace = 'pre-wrap';
-        style.wordWrap = 'break-word';
-        style.overflowWrap = 'break-word';
-        style.maxWidth = '100%';
-        style.width = '100%';
+      if (cellData.style.textWrap === "wrap") {
+        style.whiteSpace = "pre-wrap";
+        style.wordWrap = "break-word";
+        style.overflowWrap = "break-word";
+        style.maxWidth = "100%";
+        style.width = "100%";
       } else {
-        style.whiteSpace = 'nowrap';
+        style.whiteSpace = "nowrap";
       }
     }
     if (cellData.style.textRotation) {
       const rotation = cellData.style.textRotation;
-      if (rotation === 'vertical') {
-        style.writingMode = 'vertical-rl';
-        style.textOrientation = 'mixed';
-      } else if (typeof rotation === 'number') {
+      if (rotation === "vertical") {
+        style.writingMode = "vertical-rl";
+        style.textOrientation = "mixed";
+      } else if (typeof rotation === "number") {
         style.transform = `rotate(${rotation}deg)`;
-        style.transformOrigin = 'center';
+        style.transformOrigin = "center";
       }
     }
 
@@ -1656,8 +1768,12 @@ const GoogleSheetsClone = () => {
   };
 
   const formatCellValue = (cellData) => {
-    if (!cellData || !cellData.style?.numberFormat || cellData.style.numberFormat === 'automatic') {
-      return cellData?.value || '';
+    if (
+      !cellData ||
+      !cellData.style?.numberFormat ||
+      cellData.style.numberFormat === "automatic"
+    ) {
+      return cellData?.value || "";
     }
 
     const value = cellData.value;
@@ -1666,34 +1782,62 @@ const GoogleSheetsClone = () => {
 
     // Convert string to number if it's a valid number
     let numericValue = value;
-    if (typeof value === 'string' && !isNaN(value) && value.trim() !== '') {
+    if (typeof value === "string" && !isNaN(value) && value.trim() !== "") {
       numericValue = parseFloat(value);
     }
 
-    if (typeof numericValue !== 'number' || isNaN(numericValue)) {
+    if (typeof numericValue !== "number" || isNaN(numericValue)) {
       return value;
     }
 
     switch (numberFormat) {
-      case 'currency':
-        return `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}`;
-      case 'currency_rounded':
-        return `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-      case 'percent':
-        return `${(numericValue * 100).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}%`;
-      case 'number':
-        return numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
-      case 'scientific':
+      case "currency":
+        return `$${numericValue.toLocaleString(undefined, {
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
+        })}`;
+      case "currency_rounded":
+        return `$${numericValue.toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        })}`;
+      case "percent":
+        return `${(numericValue * 100).toLocaleString(undefined, {
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
+        })}%`;
+      case "number":
+        return numericValue.toLocaleString(undefined, {
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
+        });
+      case "scientific":
         return numericValue.toExponential(decimalPlaces);
-      case 'accounting':
-        return numericValue < 0 ? `($${Math.abs(numericValue).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })})` : `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}`;
-      case 'financial':
-        return numericValue < 0 ? `(${Math.abs(numericValue).toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })})` : numericValue.toLocaleString(undefined, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
-      case 'date':
+      case "accounting":
+        return numericValue < 0
+          ? `($${Math.abs(numericValue).toLocaleString(undefined, {
+              minimumFractionDigits: decimalPlaces,
+              maximumFractionDigits: decimalPlaces,
+            })})`
+          : `$${numericValue.toLocaleString(undefined, {
+              minimumFractionDigits: decimalPlaces,
+              maximumFractionDigits: decimalPlaces,
+            })}`;
+      case "financial":
+        return numericValue < 0
+          ? `(${Math.abs(numericValue).toLocaleString(undefined, {
+              minimumFractionDigits: decimalPlaces,
+              maximumFractionDigits: decimalPlaces,
+            })})`
+          : numericValue.toLocaleString(undefined, {
+              minimumFractionDigits: decimalPlaces,
+              maximumFractionDigits: decimalPlaces,
+            });
+      case "date":
         return new Date(numericValue).toLocaleDateString();
-      case 'time':
+      case "time":
         return new Date(numericValue).toLocaleTimeString();
-      case 'datetime':
+      case "datetime":
         return new Date(numericValue).toLocaleString();
       default:
         return numericValue;
@@ -1703,23 +1847,23 @@ const GoogleSheetsClone = () => {
   const handleCellClick = (cellId) => {
     // Set navigation flag to prevent interference
     isNavigatingRef.current = true;
-    
+
     // If we're currently editing a different cell, save it first
     if (isEditing && selectedCell && selectedCell !== cellId) {
       updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
-    
+
     setSelectedCell(cellId);
     const cellData = data[cellId];
     const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
     setFormulaBarValue(cellValue);
     setCellEditValue(cellValue);
     setIsProcessingInput(false);
-    
+
     // Set editing state and focus immediately
     setIsEditing(true);
-    
+
     // Use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
       if (cellInputRef.current) {
@@ -1741,7 +1885,7 @@ const GoogleSheetsClone = () => {
       updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
-    
+
     // Double-click selects all text for replacement
     setSelectedCell(cellId);
     const cellData = data[cellId];
@@ -1749,10 +1893,10 @@ const GoogleSheetsClone = () => {
     setCellEditValue(cellValue);
     setFormulaBarValue(cellValue);
     setIsProcessingInput(false);
-    
+
     // Set editing state immediately
     setIsEditing(true);
-    
+
     // Use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
       if (cellInputRef.current) {
@@ -1775,25 +1919,37 @@ const GoogleSheetsClone = () => {
     if (e.ctrlKey || e.metaKey) {
       return; // Let the handleKeyDown function handle these
     }
-    
+
     // Only handle printable characters, not special keys
-    const isPrintableKey = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
-    
+    const isPrintableKey =
+      e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+
     // Only handle if we're not already editing, not processing, and not in formula bar
-    if (!isEditing && !isProcessingInput && selectedCell && isPrintableKey && document.activeElement !== formulaBarInputRef.current) {
+    if (
+      !isEditing &&
+      !isProcessingInput &&
+      selectedCell &&
+      isPrintableKey &&
+      document.activeElement !== formulaBarInputRef.current
+    ) {
       // Prevent the default behavior to avoid duplication
       e.preventDefault();
       setIsProcessingInput(true);
       // Start editing when user types a character
       setIsEditing(true);
       const cellData = data[selectedCell];
-      const existingValue = cellData ? cellData.formula || cellData.value || "" : "";
+      const existingValue = cellData
+        ? cellData.formula || cellData.value || ""
+        : "";
       setCellEditValue(existingValue + e.key);
       setFormulaBarValue(existingValue + e.key);
       setTimeout(() => {
         if (cellInputRef.current) {
           cellInputRef.current.focus();
-          cellInputRef.current.setSelectionRange(existingValue.length + 1, existingValue.length + 1);
+          cellInputRef.current.setSelectionRange(
+            existingValue.length + 1,
+            existingValue.length + 1
+          );
         }
         setIsProcessingInput(false);
       }, 0);
@@ -1802,7 +1958,7 @@ const GoogleSheetsClone = () => {
 
   // Ensure the main container can receive focus for keyboard events
   useEffect(() => {
-    const mainContainer = document.querySelector('.main-spreadsheet-container');
+    const mainContainer = document.querySelector(".main-spreadsheet-container");
     if (mainContainer) {
       mainContainer.focus();
     }
@@ -1811,9 +1967,13 @@ const GoogleSheetsClone = () => {
   // Handle clicks outside the spreadsheet to save current cell
   useEffect(() => {
     const handleClickOutside = (e) => {
-      const isInsideSpreadsheet = e.target.closest('.main-spreadsheet-container');
-      const isCellInput = e.target.tagName === 'INPUT' && e.target.className.includes('border-none');
-      
+      const isInsideSpreadsheet = e.target.closest(
+        ".main-spreadsheet-container"
+      );
+      const isCellInput =
+        e.target.tagName === "INPUT" &&
+        e.target.className.includes("border-none");
+
       if (!isInsideSpreadsheet && isEditing && selectedCell && !isCellInput) {
         updateCellLocal(selectedCell, cellEditValue);
         setIsEditing(false);
@@ -1822,15 +1982,14 @@ const GoogleSheetsClone = () => {
 
     // Use a longer delay to prevent interference with cell navigation
     const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }, 200);
 
     return () => {
       clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isEditing, selectedCell, cellEditValue]);
-
 
   const generateChart = () => {
     const selectedData = [];
@@ -1927,8 +2086,8 @@ const GoogleSheetsClone = () => {
   };
 
   return (
-    <div 
-      className="flex flex-col h-screen bg-white main-spreadsheet-container" 
+    <div
+      className="flex flex-col h-screen bg-white main-spreadsheet-container"
       onKeyDown={handleKeyPress}
       tabIndex={0}
     >
@@ -1968,66 +2127,102 @@ const GoogleSheetsClone = () => {
         <div className="flex items-center px-4 py-1 bg-white border-b border-gray-200 relative">
           <div className="flex items-center space-x-2">
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('file')}
-                className={`text-md px-2 py-1 rounded ${showFileMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("file")}
+                className={`text-md px-2 py-1 rounded ${
+                  showFileMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              File
-            </button>
+                File
+              </button>
               {showFileMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button onClick={handleNewSpreadsheet} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleNewSpreadsheet}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     New Spreadsheet
                   </button>
-                  <button onClick={handleSaveSpreadsheet} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleSaveSpreadsheet}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Save
                   </button>
-                  <button onClick={handleExportCSV} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleExportCSV}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Export as CSV
                   </button>
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('edit')}
-                className={`text-md px-2 py-1 rounded ${showEditMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("edit")}
+                className={`text-md px-2 py-1 rounded ${
+                  showEditMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              Edit
-            </button>
+                Edit
+              </button>
               {showEditMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button onClick={handleUndo} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleUndo}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Undo
                   </button>
-                  <button onClick={handleRedo} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleRedo}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Redo
                   </button>
                   <div className="border-t border-gray-200"></div>
-                  <button onClick={handleCut} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleCut}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Cut
                   </button>
-                  <button onClick={handleCopy} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleCopy}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Copy
                   </button>
-                  <button onClick={handlePaste} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handlePaste}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Paste
                   </button>
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('view')}
-                className={`text-md px-2 py-1 rounded ${showViewMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("view")}
+                className={`text-md px-2 py-1 rounded ${
+                  showViewMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              View
-            </button>
+                View
+              </button>
               {showViewMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button 
+                  <button
                     onClick={() => {
                       handleZoomIn();
                       setShowViewMenu(false);
@@ -2036,7 +2231,7 @@ const GoogleSheetsClone = () => {
                   >
                     Zoom In
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       handleZoomOut();
                       setShowViewMenu(false);
@@ -2045,7 +2240,7 @@ const GoogleSheetsClone = () => {
                   >
                     Zoom Out
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       handleZoomToFit();
                       setShowViewMenu(false);
@@ -2061,20 +2256,30 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('insert')}
-                className={`text-md px-2 py-1 rounded ${showInsertMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("insert")}
+                className={`text-md px-2 py-1 rounded ${
+                  showInsertMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              Insert
-            </button>
+                Insert
+              </button>
               {showInsertMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button onClick={handleInsertRow} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleInsertRow}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Insert Row
                   </button>
-                  <button onClick={handleInsertColumn} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleInsertColumn}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Insert Column
                   </button>
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -2083,20 +2288,30 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('format')}
-                className={`text-md px-2 py-1 rounded ${showFormatMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("format")}
+                className={`text-md px-2 py-1 rounded ${
+                  showFormatMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              Format
-            </button>
+                Format
+              </button>
               {showFormatMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button onClick={handleBold} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleBold}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Bold
                   </button>
-                  <button onClick={handleItalic} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleItalic}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Italic
                   </button>
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
@@ -2108,29 +2323,42 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
-              <button 
-                onClick={() => handleMenuClick('data')}
-                className={`text-md px-2 py-1 rounded ${showDataMenu ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'}`}
+              <button
+                onClick={() => handleMenuClick("data")}
+                className={`text-md px-2 py-1 rounded ${
+                  showDataMenu
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
-              Data
-            </button>
+                Data
+              </button>
               {showDataMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
-                  <button onClick={handleSortAscending} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleSortAscending}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Sort A to Z
                   </button>
-                  <button onClick={handleSortDescending} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleSortDescending}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Sort Z to A
                   </button>
-                  <button onClick={handleFilter} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                  <button
+                    onClick={handleFilter}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  >
                     Filter
                   </button>
                 </div>
               )}
             </div>
-            
+
             <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
               Tools
             </button>
@@ -2150,10 +2378,16 @@ const GoogleSheetsClone = () => {
           {/* Left side toolbar */}
           <div className="flex items-center space-x-1">
             {/* Undo/Redo */}
-            <button onClick={handleUndo} className="p-2 hover:bg-gray-100 rounded">
+            <button
+              onClick={handleUndo}
+              className="p-2 hover:bg-gray-100 rounded"
+            >
               <Undo size={16} className="text-gray-600" />
             </button>
-            <button onClick={handleRedo} className="p-2 hover:bg-gray-100 rounded">
+            <button
+              onClick={handleRedo}
+              className="p-2 hover:bg-gray-100 rounded"
+            >
               <Redo size={16} className="text-gray-600" />
             </button>
 
@@ -2162,24 +2396,34 @@ const GoogleSheetsClone = () => {
 
             {/* Zoom Controls */}
             <div className="flex items-center space-x-1">
-              <button 
+              <button
                 onClick={handleZoomOut}
                 className="p-1 text-gray-600 hover:bg-gray-100 rounded"
                 title="Zoom Out"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 12H4"
+                  />
+                </svg>
+              </button>
 
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setShowZoomDropdown(!showZoomDropdown)}
                   className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-12"
                 >
                   {zoomLevel}%
                 </button>
-                
+
                 {showZoomDropdown && (
                   <div className="zoom-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-32">
                     {zoomLevels.map((level) => (
@@ -2187,32 +2431,42 @@ const GoogleSheetsClone = () => {
                         key={level}
                         onClick={() => handleZoomChange(level)}
                         className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                          level === zoomLevel ? 'bg-blue-50 text-blue-600' : ''
+                          level === zoomLevel ? "bg-blue-50 text-blue-600" : ""
                         }`}
                       >
                         {level}%
-              </button>
+                      </button>
                     ))}
                   </div>
                 )}
-            </div>
+              </div>
 
-              <button 
+              <button
                 onClick={handleZoomIn}
                 className="p-1 text-gray-600 hover:bg-gray-100 rounded"
                 title="Zoom In"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
                 </svg>
               </button>
-              
+
               <div className="w-px h-4 bg-gray-300"></div>
             </div>
 
             {/* Number Format Dropdown */}
             <div className="relative">
-              <button 
+              <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -2220,96 +2474,146 @@ const GoogleSheetsClone = () => {
                 }}
                 className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-16 text-left"
               >
-                {numberFormats.find(f => f.value === getCurrentNumberFormat())?.label || '123'}
+                {numberFormats.find((f) => f.value === getCurrentNumberFormat())
+                  ?.label || "123"}
               </button>
-              
+
               {showNumberFormatDropdown && (
                 <div className="number-format-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
                   <div className="p-2">
-                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">General</div>
-                    {numberFormats.filter(f => ['automatic', 'text'].includes(f.value)).map((format) => (
-                      <button
-                        key={format.value}
-                        onClick={() => handleNumberFormatChange(format.value)}
-                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
-                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>{format.label}</span>
-                          <span className="text-xs text-gray-400">{format.example}</span>
-                        </div>
-                      </button>
-                    ))}
-                    
-                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Number</div>
-                    {numberFormats.filter(f => ['number', 'percent', 'scientific'].includes(f.value)).map((format) => (
-                      <button
-                        key={format.value}
-                        onClick={() => handleNumberFormatChange(format.value)}
-                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
-                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>{format.label}</span>
-                          <span className="text-xs text-gray-400">{format.example}</span>
-                        </div>
-                      </button>
-                    ))}
-                    
-                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Currency</div>
-                    {numberFormats.filter(f => ['accounting', 'financial', 'currency', 'currency_rounded'].includes(f.value)).map((format) => (
-                      <button
-                        key={format.value}
-                        onClick={() => handleNumberFormatChange(format.value)}
-                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
-                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>{format.label}</span>
-                          <span className="text-xs text-gray-400">{format.example}</span>
-                        </div>
-                      </button>
-                    ))}
-                    
-                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">Date & time</div>
-                    {numberFormats.filter(f => ['date', 'time', 'datetime', 'duration'].includes(f.value)).map((format) => (
-                      <button
-                        key={format.value}
-                        onClick={() => handleNumberFormatChange(format.value)}
-                        className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
-                          format.value === getCurrentNumberFormat() ? 'bg-blue-50 text-blue-600' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>{format.label}</span>
-                          <span className="text-xs text-gray-400">{format.example}</span>
-                        </div>
-                      </button>
-                    ))}
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">
+                      General
+                    </div>
+                    {numberFormats
+                      .filter((f) => ["automatic", "text"].includes(f.value))
+                      .map((format) => (
+                        <button
+                          key={format.value}
+                          onClick={() => handleNumberFormatChange(format.value)}
+                          className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                            format.value === getCurrentNumberFormat()
+                              ? "bg-blue-50 text-blue-600"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{format.label}</span>
+                            <span className="text-xs text-gray-400">
+                              {format.example}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">
+                      Number
+                    </div>
+                    {numberFormats
+                      .filter((f) =>
+                        ["number", "percent", "scientific"].includes(f.value)
+                      )
+                      .map((format) => (
+                        <button
+                          key={format.value}
+                          onClick={() => handleNumberFormatChange(format.value)}
+                          className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                            format.value === getCurrentNumberFormat()
+                              ? "bg-blue-50 text-blue-600"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{format.label}</span>
+                            <span className="text-xs text-gray-400">
+                              {format.example}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">
+                      Currency
+                    </div>
+                    {numberFormats
+                      .filter((f) =>
+                        [
+                          "accounting",
+                          "financial",
+                          "currency",
+                          "currency_rounded",
+                        ].includes(f.value)
+                      )
+                      .map((format) => (
+                        <button
+                          key={format.value}
+                          onClick={() => handleNumberFormatChange(format.value)}
+                          className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                            format.value === getCurrentNumberFormat()
+                              ? "bg-blue-50 text-blue-600"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{format.label}</span>
+                            <span className="text-xs text-gray-400">
+                              {format.example}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2 mt-3">
+                      Date & time
+                    </div>
+                    {numberFormats
+                      .filter((f) =>
+                        ["date", "time", "datetime", "duration"].includes(
+                          f.value
+                        )
+                      )
+                      .map((format) => (
+                        <button
+                          key={format.value}
+                          onClick={() => handleNumberFormatChange(format.value)}
+                          className={`w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded ${
+                            format.value === getCurrentNumberFormat()
+                              ? "bg-blue-50 text-blue-600"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{format.label}</span>
+                            <span className="text-xs text-gray-400">
+                              {format.example}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
                   </div>
                 </div>
               )}
             </div>
 
             {/* Currency Button */}
-            <button 
+            <button
               onClick={handleCurrencyFormat}
               className={`p-2 rounded ${
-                getCurrentNumberFormat() === 'currency' ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+                getCurrentNumberFormat() === "currency"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
               }`}
               title="Format as currency"
             >
               <DollarSign size={16} className="text-gray-600" />
             </button>
-            
+
             {/* Percentage Button */}
-            <button 
+            <button
               onClick={handlePercentageFormat}
               className={`p-2 rounded ${
-                getCurrentNumberFormat() === 'percent' ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
+                getCurrentNumberFormat() === "percent"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
               }`}
               title="Format as percent"
             >
@@ -2317,30 +2621,46 @@ const GoogleSheetsClone = () => {
             </button>
 
             {/* Decimal places - Decrease */}
-            <button 
+            <button
               onClick={handleDecreaseDecimalPlaces}
               className="p-2 hover:bg-gray-100 rounded"
               title="Decrease decimal places"
             >
               <div className="flex items-center">
                 <span className="text-xs text-gray-600">.00</span>
-                <svg className="w-3 h-3 text-gray-600 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
+                <svg
+                  className="w-3 h-3 text-gray-600 ml-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </button>
-            
+
             {/* Decimal places - Increase */}
-            <button 
+            <button
               onClick={handleIncreaseDecimalPlaces}
               className="p-2 hover:bg-gray-100 rounded"
               title="Increase decimal places"
             >
               <div className="flex items-center">
                 <span className="text-xs text-gray-600">.0</span>
-                <svg className="w-3 h-3 text-gray-600 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
+                <svg
+                  className="w-3 h-3 text-gray-600 ml-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </button>
 
@@ -2351,52 +2671,63 @@ const GoogleSheetsClone = () => {
             <div className="flex items-center space-x-1">
               {/* Font Family Dropdown */}
               <div className="relative">
-                <button 
+                <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Font dropdown clicked, current state:', showFontDropdown);
+                    console.log(
+                      "Font dropdown clicked, current state:",
+                      showFontDropdown
+                    );
                     setShowFontDropdown(!showFontDropdown);
                   }}
                   className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-20 text-left"
                   style={{ fontFamily: getCurrentFontFamily() }}
                 >
                   {getCurrentFontFamily()}
-              </button>
-                
+                </button>
+
                 {showFontDropdown && (
                   <div className="font-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
-                    {console.log('Rendering font dropdown with fonts:', fontFamilies)}
+                    {console.log(
+                      "Rendering font dropdown with fonts:",
+                      fontFamilies
+                    )}
                     {fontFamilies.map((font) => (
                       <button
                         key={font}
                         onClick={() => handleFontFamilyChange(font)}
                         className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                          font === getCurrentFontFamily() ? 'bg-blue-50 text-blue-600' : ''
+                          font === getCurrentFontFamily()
+                            ? "bg-blue-50 text-blue-600"
+                            : ""
                         }`}
                         style={{ fontFamily: font }}
                       >
                         {font}
-                </button>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
-              
+
               {/* Font Size Dropdown */}
               <div className="relative">
-                <button 
+                <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Font size dropdown clicked, current state:', showFontSizeDropdown);
+                    console.log(
+                      "Font size dropdown clicked, current state:",
+                      showFontSizeDropdown
+                    );
                     setShowFontSizeDropdown(!showFontSizeDropdown);
                   }}
                   className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-8 text-center"
                 >
                   {getCurrentFontSize()}
-                  </button>
-                
+                </button>
+
                 {showFontSizeDropdown && (
                   <div className="font-size-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-16 max-h-48 overflow-y-auto">
                     {fontSizes.map((size) => (
@@ -2404,13 +2735,15 @@ const GoogleSheetsClone = () => {
                         key={size}
                         onClick={() => handleFontSizeChange(size)}
                         className={`block w-full text-center px-3 py-2 text-sm hover:bg-gray-100 ${
-                          size === getCurrentFontSize() ? 'bg-blue-50 text-blue-600' : ''
+                          size === getCurrentFontSize()
+                            ? "bg-blue-50 text-blue-600"
+                            : ""
                         }`}
                       >
                         {size}
-                  </button>
+                      </button>
                     ))}
-                </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -2435,9 +2768,15 @@ const GoogleSheetsClone = () => {
               onClick={() => {
                 if (selectedCell) {
                   const cellData = getLocalCellData(selectedCell);
-                  const newStyle = { ...cellData.style, textDecoration: cellData.style?.textDecoration === 'line-through' ? 'none' : 'line-through' };
+                  const newStyle = {
+                    ...cellData.style,
+                    textDecoration:
+                      cellData.style?.textDecoration === "line-through"
+                        ? "none"
+                        : "line-through",
+                  };
                   formatCell({ textDecoration: newStyle.textDecoration });
-                  showSuccess('Text formatting updated');
+                  showSuccess("Text formatting updated");
                 }
               }}
               className="p-2 hover:bg-gray-100 rounded underline text-gray-600"
@@ -2473,38 +2812,14 @@ const GoogleSheetsClone = () => {
               </button>
             </div>
 
-            {/* Vertical Alignment */}
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => formatCell({ verticalAlign: "top" })}
-                className="p-2 hover:bg-gray-100 rounded"
-                title="Align Top"
-              >
-                <AlignVerticalJustifyStart size={16} className="text-gray-600" />
-              </button>
-              <button
-                onClick={() => formatCell({ verticalAlign: "middle" })}
-                className="p-2 hover:bg-gray-100 rounded"
-                title="Align Middle"
-              >
-                <AlignVerticalJustifyCenter size={16} className="text-gray-600" />
-              </button>
-              <button
-                onClick={() => formatCell({ verticalAlign: "bottom" })}
-                className="p-2 hover:bg-gray-100 rounded"
-                title="Align Bottom"
-              >
-                <AlignVerticalJustifyEnd size={16} className="text-gray-600" />
-              </button>
-            </div>
-
             {/* Text Wrapping */}
             <button
               onClick={handleTextWrap}
               className={`p-2 hover:bg-gray-100 rounded ${
-                selectedCell && getLocalCellData(selectedCell)?.style?.textWrap === 'wrap' 
-                  ? 'bg-blue-100 text-blue-600' 
-                  : ''
+                selectedCell &&
+                getLocalCellData(selectedCell)?.style?.textWrap === "wrap"
+                  ? "bg-blue-100 text-blue-600"
+                  : ""
               }`}
               title="Wrap Text"
             >
@@ -2514,18 +2829,22 @@ const GoogleSheetsClone = () => {
             {/* Text Rotation */}
             <div className="relative">
               <button
-                onClick={() => setShowTextRotationDropdown(!showTextRotationDropdown)}
+                onClick={() =>
+                  setShowTextRotationDropdown(!showTextRotationDropdown)
+                }
                 className="p-2 hover:bg-gray-100 rounded flex items-center"
                 title="Text Rotation"
               >
                 <RotateCcw size={16} className="text-gray-600" />
                 <ChevronDown size={12} className="ml-1" />
               </button>
-              
+
               {showTextRotationDropdown && (
                 <div className="text-rotation-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <div className="p-2">
-                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">Text Rotation</div>
+                    <div className="text-xs font-medium text-gray-500 mb-2 px-2">
+                      Text Rotation
+                    </div>
                     {textRotationOptions.map((option) => (
                       <button
                         key={option.value}
@@ -2540,298 +2859,284 @@ const GoogleSheetsClone = () => {
               )}
             </div>
 
-
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
-            {/* Filter */}
-            <div className="relative">
-              <button
-                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                className={`p-2 rounded flex items-center ${
-                  Object.keys(columnFilters).length > 0
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-gray-100"
-                }`}
-                title="Create a filter"
-              >
-                <Filter size={16} />
-                {Object.keys(columnFilters).length > 0 && (
-                  <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
-                    {Object.keys(columnFilters).length}
-                  </span>
+            <div className="flex flex-wrap items-start space-x-2 justify-start">
+              <div className="">
+                <button
+                  onClick={() => setShowFunctionMenu(!showFunctionMenu)}
+                  className="p-2 hover:bg-gray-100 rounded flex items-center"
+                >
+                  <Calculator size={16} />
+                  <ChevronDown size={12} className="ml-1" />
+                </button>
+
+                {showFunctionMenu && (
+                  <div className="absolute top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg z-50">
+                    <div className="p-2 border-b">
+                      <input
+                        type="text"
+                        placeholder="Search functions..."
+                        className="w-full px-2 py-1 border rounded text-sm"
+                        value={formulaSearch}
+                        onChange={(e) => setFormulaSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {Object.entries(functionCategories).map(
+                        ([category, funcs]) => (
+                          <div key={category} className="p-2">
+                            <div className="font-semibold text-sm text-gray-600 mb-1">
+                              {category}
+                            </div>
+                            {funcs
+                              .filter(
+                                (func) =>
+                                  !formulaSearch ||
+                                  func
+                                    .toLowerCase()
+                                    .includes(formulaSearch.toLowerCase())
+                              )
+                              .map((func) => (
+                                <button
+                                  key={func}
+                                  onClick={() => insertFunction(func)}
+                                  className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                                >
+                                  {func}
+                                </button>
+                              ))}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
                 )}
+              </div>
+              <div className="">
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="p-2 hover:bg-gray-100 rounded"
+                >
+                  <Palette size={16} />
+                </button>
+
+                {showColorPicker && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
+                    <div className="grid grid-cols-6 gap-2 mb-3">
+                      {[
+                        "#000000",
+                        "#FF0000",
+                        "#00FF00",
+                        "#0000FF",
+                        "#FFFF00",
+                        "#FF00FF",
+                        "#00FFFF",
+                        "#FFA500",
+                        "#800080",
+                        "#008000",
+                        "#FFC0CB",
+                        "#A52A2A",
+                      ].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => {
+                            formatCell({ color });
+                            setShowColorPicker(false);
+                          }}
+                          className="w-6 h-6 rounded border"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="border-t pt-2">
+                      <div className="text-sm font-medium mb-2">Background</div>
+                      <div className="grid grid-cols-6 gap-2">
+                        {[
+                          "#FFFFFF",
+                          "#F0F0F0",
+                          "#FFEEEE",
+                          "#EEFFEE",
+                          "#EEEEFF",
+                          "#FFFFEE",
+                          "#FFEEFF",
+                          "#EEFFFF",
+                          "#FFE4B5",
+                          "#E6E6FA",
+                          "#F0E68C",
+                          "#FFB6C1",
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => {
+                              formatCell({ backgroundColor: color });
+                              setShowColorPicker(false);
+                            }}
+                            className="w-6 h-6 rounded border"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={deleteCell}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <Trash2 size={16} />
               </button>
+
+              {/* Filter Button */}
+              <div className="">
+                <button
+                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  className={`p-2 rounded flex items-center ${
+                    Object.keys(activeFilters).length > 0
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-gray-100"
+                  }`}
+                  title="Create a filter"
+                >
+                  <Filter size={16} />
+                  {Object.keys(activeFilters).length > 0 && (
+                    <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
+                      {Object.keys(activeFilters).length}
+                    </span>
+                  )}
+                </button>
+
+                {filterMenuOpen && (
+                  <div className="filter-menu absolute top-full right-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-gray-800">
+                        Create a filter
+                      </h3>
+                      <button
+                        onClick={() => setFilterMenuOpen(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Filter by column
+                        </label>
+                        <select
+                          value={filterColumn}
+                          onChange={(e) => setFilterColumn(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {Array.from({ length: 40 }, (_, i) => (
+                            <option key={i} value={getColumnName(i + 1)}>
+                              Column {getColumnName(i + 1)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Filter value
+                        </label>
+                        <input
+                          type="text"
+                          value={filterValue}
+                          onChange={(e) => setFilterValue(e.target.value)}
+                          placeholder="Enter filter value..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            applyFilter(filterColumn, filterValue);
+                            setFilterValue("");
+                          }}
+                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                        >
+                          Apply Filter
+                        </button>
+                        <button
+                          onClick={clearAllFilters}
+                          className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm flex items-center"
+                        >
+                          <FilterX size={14} className="mr-1" />
+                          Clear All
+                        </button>
+                      </div>
+
+                      {Object.keys(columnFilters).length > 0 && (
+                        <div className="border-t pt-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">
+                            Active Filters:
+                          </h4>
+                          <div className="space-y-1">
+                            {Object.entries(columnFilters).map(
+                              ([column, filter]) => (
+                                <div
+                                  key={column}
+                                  className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
+                                >
+                                  <span>
+                                    {column}: {filter.type.replace("_", " ")}{" "}
+                                    {filter.value && `"${filter.value}"`}
+                                    {filter.values &&
+                                      filter.values.length > 0 &&
+                                      `(${filter.values.length} values)`}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      applyColumnFilter(column, "", "", [])
+                                    }
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="relative">
+          {/* Right side - Action buttons */}
+          <div className="flex items-center space-x-2">
             <button
-              onClick={() => setShowFunctionMenu(!showFunctionMenu)}
-              className="p-2 hover:bg-gray-100 rounded flex items-center"
+              onClick={() => navigate("/dashboard")}
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
             >
-              <Calculator size={16} />
-              <ChevronDown size={12} className="ml-1" />
+              <BarChart size={14} />
+              <span>Dashboard</span>
             </button>
-
-            {showFunctionMenu && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg z-50">
-                <div className="p-2 border-b">
-                  <input
-                    type="text"
-                    placeholder="Search functions..."
-                    className="w-full px-2 py-1 border rounded text-sm"
-                    value={formulaSearch}
-                    onChange={(e) => setFormulaSearch(e.target.value)}
-                  />
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {Object.entries(functionCategories).map(
-                    ([category, funcs]) => (
-                      <div key={category} className="p-2">
-                        <div className="font-semibold text-sm text-gray-600 mb-1">
-                          {category}
-                        </div>
-                        {funcs
-                          .filter(
-                            (func) =>
-                              !formulaSearch ||
-                              func
-                                .toLowerCase()
-                                .includes(formulaSearch.toLowerCase())
-                          )
-                          .map((func) => (
-                            <button
-                              key={func}
-                              onClick={() => insertFunction(func)}
-                              className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                            >
-                              {func}
-                            </button>
-                          ))}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="relative">
             <button
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="p-2 hover:bg-gray-100 rounded"
+              onClick={() => navigate("/spreadsheet-dashboard")}
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
             >
-              <Palette size={16} />
+              <FileSpreadsheet size={14} />
+              <span>My Sheets</span>
             </button>
-
-            {showColorPicker && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
-                <div className="grid grid-cols-6 gap-2 mb-3">
-                  {[
-                    "#000000",
-                    "#FF0000",
-                    "#00FF00",
-                    "#0000FF",
-                    "#FFFF00",
-                    "#FF00FF",
-                    "#00FFFF",
-                    "#FFA500",
-                    "#800080",
-                    "#008000",
-                    "#FFC0CB",
-                    "#A52A2A",
-                  ].map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        formatCell({ color });
-                        setShowColorPicker(false);
-                      }}
-                      className="w-6 h-6 rounded border"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-                <div className="border-t pt-2">
-                  <div className="text-sm font-medium mb-2">Background</div>
-                  <div className="grid grid-cols-6 gap-2">
-                    {[
-                      "#FFFFFF",
-                      "#F0F0F0",
-                      "#FFEEEE",
-                      "#EEFFEE",
-                      "#EEEEFF",
-                      "#FFFFEE",
-                      "#FFEEFF",
-                      "#EEFFFF",
-                      "#FFE4B5",
-                      "#E6E6FA",
-                      "#F0E68C",
-                      "#FFB6C1",
-                    ].map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          formatCell({ backgroundColor: color });
-                          setShowColorPicker(false);
-                        }}
-                        className="w-6 h-6 rounded border"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={deleteCell}
-            className="p-2 hover:bg-gray-100 rounded"
-          >
-            <Trash2 size={16} />
-          </button>
-
-          {/* Filter Button */}
-          <div className="relative">
             <button
-              onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-              className={`p-2 rounded flex items-center ${
-                Object.keys(activeFilters).length > 0
-                  ? "bg-blue-100 text-blue-600"
-                  : "hover:bg-gray-100"
-              }`}
-              title="Create a filter"
-            >
-              <Filter size={16} />
-              {Object.keys(activeFilters).length > 0 && (
-                <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
-                  {Object.keys(activeFilters).length}
-                </span>
-              )}
-            </button>
-
-            {filterMenuOpen && (
-              <div className="filter-menu absolute top-full right-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-800">
-                    Create a filter
-                  </h3>
-                  <button
-                    onClick={() => setFilterMenuOpen(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter by column
-                    </label>
-                    <select
-                      value={filterColumn}
-                      onChange={(e) => setFilterColumn(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {Array.from({ length: 40 }, (_, i) => (
-                        <option key={i} value={getColumnName(i + 1)}>
-                          Column {getColumnName(i + 1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter value
-                    </label>
-                    <input
-                      type="text"
-                      value={filterValue}
-                      onChange={(e) => setFilterValue(e.target.value)}
-                      placeholder="Enter filter value..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        applyFilter(filterColumn, filterValue);
-                        setFilterValue("");
-                      }}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                    >
-                      Apply Filter
-                    </button>
-                    <button
-                      onClick={clearAllFilters}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm flex items-center"
-                    >
-                      <FilterX size={14} className="mr-1" />
-                      Clear All
-                    </button>
-                  </div>
-
-                  {Object.keys(columnFilters).length > 0 && (
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Active Filters:
-                      </h4>
-                      <div className="space-y-1">
-                        {Object.entries(columnFilters).map(
-                          ([column, filter]) => (
-                            <div
-                              key={column}
-                              className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
-                            >
-                              <span>
-                                {column}: {filter.type.replace('_', ' ')} {filter.value && `"${filter.value}"`}
-                                {filter.values && filter.values.length > 0 && `(${filter.values.length} values)`}
-                              </span>
-                              <button
-                                onClick={() => applyColumnFilter(column, '', '', [])}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-           {/* Right side - Action buttons */}
-           <div className="flex items-center space-x-2">
-             <button 
-               onClick={() => navigate('/dashboard')}
-               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
-             >
-               <BarChart size={14} />
-               <span>Dashboard</span>
-             </button>
-             <button 
-               onClick={() => navigate('/spreadsheet-dashboard')}
-               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
-             >
-               <FileSpreadsheet size={14} />
-               <span>My Sheets</span>
-             </button>
-            <button 
-              onClick={() => navigate('/create-chart')}
+              onClick={() => navigate("/create-chart")}
               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
             >
               <BarChart size={14} />
               <span>Create Chart</span>
             </button>
-            <button 
+            <button
               onClick={handleImportCSV}
               className="px-3 py-1 bg-white text-gray-700 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 flex items-center space-x-1"
             >
@@ -2871,7 +3176,7 @@ const GoogleSheetsClone = () => {
             </button>
           </div>
           <div className="flex-1">
-            <div 
+            <div
               className="flex items-center border border-gray-300 rounded bg-white cursor-text"
               onClick={() => {
                 setTimeout(() => {
@@ -2879,54 +3184,57 @@ const GoogleSheetsClone = () => {
                     formulaBarInputRef.current.focus();
                     // Don't select all text - just position cursor at end for editing
                     const length = formulaBarInputRef.current.value.length;
-                    formulaBarInputRef.current.setSelectionRange(length, length);
+                    formulaBarInputRef.current.setSelectionRange(
+                      length,
+                      length
+                    );
                   }
                 }, 0);
               }}
             >
-                <input
-                  ref={formulaBarInputRef}
-                  type="text"
-                  value={formulaBarValue}
-                  onChange={(e) => setFormulaBarValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && selectedCell) {
-                      updateCellLocal(selectedCell, formulaBarValue);
-                      // Move to next row
-                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                      if (match) {
-                        const nextCell = match[1] + (parseInt(match[2]) + 1);
-                        handleCellClick(nextCell);
-                      }
-                    } else if (e.key === "Tab" && selectedCell) {
-                      e.preventDefault();
-                      updateCellLocal(selectedCell, formulaBarValue);
-                      // Move to next column
-                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                      if (match) {
-                        const colNum = getColumnNumber(match[1]);
-                        const nextCell = getColumnName(colNum + 1) + match[2];
-                        handleCellClick(nextCell);
-                      }
+              <input
+                ref={formulaBarInputRef}
+                type="text"
+                value={formulaBarValue}
+                onChange={(e) => setFormulaBarValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && selectedCell) {
+                    updateCellLocal(selectedCell, formulaBarValue);
+                    // Move to next row
+                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                    if (match) {
+                      const nextCell = match[1] + (parseInt(match[2]) + 1);
+                      handleCellClick(nextCell);
                     }
-                  }}
-                  onFocus={() => setIsEditing(true)}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (selectedCell) {
-                        updateCellLocal(selectedCell, formulaBarValue);
-                      }
-                      setIsEditing(false);
-                    }, 150);
-                  }}
-                  onMouseUp={(e) => {
-                    // Allow normal text selection behavior
-                    e.stopPropagation();
-                  }}
-                  className="flex-1 px-3 py-1 focus:outline-none"
-                  placeholder="Enter value or formula (start with =)"
-                  autoComplete="off"
-                />
+                  } else if (e.key === "Tab" && selectedCell) {
+                    e.preventDefault();
+                    updateCellLocal(selectedCell, formulaBarValue);
+                    // Move to next column
+                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                    if (match) {
+                      const colNum = getColumnNumber(match[1]);
+                      const nextCell = getColumnName(colNum + 1) + match[2];
+                      handleCellClick(nextCell);
+                    }
+                  }
+                }}
+                onFocus={() => setIsEditing(true)}
+                onBlur={() => {
+                  setTimeout(() => {
+                    if (selectedCell) {
+                      updateCellLocal(selectedCell, formulaBarValue);
+                    }
+                    setIsEditing(false);
+                  }, 150);
+                }}
+                onMouseUp={(e) => {
+                  // Allow normal text selection behavior
+                  e.stopPropagation();
+                }}
+                className="flex-1 px-3 py-1 focus:outline-none"
+                placeholder="Enter value or formula (start with =)"
+                autoComplete="off"
+              />
               <button className="px-2 py-1 text-gray-400 hover:text-gray-600 border-l border-gray-300">
                 <svg
                   className="w-4 h-4"
@@ -2960,231 +3268,336 @@ const GoogleSheetsClone = () => {
         {/* Resize Indicator */}
         {showResizeIndicator && isResizing && (
           <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded shadow-lg z-50 text-sm">
-            {resizeType === 'column' 
+            {resizeType === "column"
               ? `Width: ${Math.round(getColumnWidth(resizeTarget))}px`
-              : `Height: ${Math.round(getRowHeight(resizeTarget))}px`
-            }
+              : `Height: ${Math.round(getRowHeight(resizeTarget))}px`}
           </div>
         )}
-        
+
         {/* Google Sheets Style Spreadsheet */}
-        <div className="flex-1 overflow-auto bg-white mb-12" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-          <div 
+        <div
+          className="flex-1 overflow-auto bg-white mb-12"
+          style={{ maxHeight: "calc(100vh - 200px)" }}
+        >
+          <div
             className="relative"
-            style={{ 
+            style={{
               transform: `scale(${zoomLevel / 100})`,
-              transformOrigin: 'top left',
+              transformOrigin: "top left",
               width: `${100 / (zoomLevel / 100)}%`,
-              height: `${100 / (zoomLevel / 100)}%`
+              height: `${100 / (zoomLevel / 100)}%`,
             }}
           >
-             <table className="min-w-full border-collapse">
-               <thead className="sticky top-0 z-20">
-                 <tr className="bg-gray-50">
-                   <th className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-30" style={{ minWidth: '64px', maxWidth: '64px' }}></th>
-                   {Array.from({ length: 40 }, (_, i) => {
-                     const columnName = getColumnName(i + 1);
-                     const hasFilter = activeFilters[columnName];
-                     const hasColumnFilter = columnFilters[columnName];
-                     const columnWidth = getColumnWidth(columnName);
-                     
-                     return (
-                       <th
-                         key={i}
-                         className="border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100 group"
-                         style={{ 
-                           minWidth: `${columnWidth}px`,
-                           width: `${columnWidth}px`
-                         }}
-                       >
-                         <div className="flex items-center justify-between h-full px-1">
-                           <div className="flex items-center justify-center flex-1">
-                           {columnName}
-                           {hasFilter && (
-                             <Filter size={12} className="ml-1 text-blue-600" />
-                           )}
-                             {hasColumnFilter && (
-                               <div className="ml-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-                           )}
-                         </div>
-                           
-                           {/* Filter button */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               setShowFilterDropdown(showFilterDropdown === columnName ? null : columnName);
-                             }}
-                             className={`opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity ${
-                               hasColumnFilter ? 'opacity-100' : ''
-                             }`}
-                             title="Filter"
-                           >
-                             <Filter size={12} className={hasColumnFilter ? 'text-blue-600' : 'text-gray-600'} />
-                           </button>
-                           
-                           {/* Resize handle */}
-                           <div
-                             className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
-                             onMouseDown={(e) => {
-                               e.preventDefault();
-                               e.stopPropagation();
-                               startResize('column', columnName, e);
-                             }}
-                           />
-                         </div>
-                         
-                         {/* Enhanced Filter dropdown */}
-                         {showFilterDropdown === columnName && (
-                           <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
-                             <div className="p-3">
-                               <div className="flex items-center justify-between mb-3">
-                                 <h4 className="font-medium text-sm">Filter by {columnName}</h4>
-                                 <button
-                                   onClick={() => setShowFilterDropdown(null)}
-                                   className="text-gray-400 hover:text-gray-600"
-                                 >
-                                   <X size={14} />
-                                 </button>
-                               </div>
-                               
-                               {/* Filter Type Selection */}
-                               <div className="mb-3">
-                                 <label className="block text-xs font-medium text-gray-700 mb-1">Filter type:</label>
-                                 <select
-                                   value={columnFilters[columnName]?.type || 'contains'}
-                                   onChange={(e) => {
-                                     const currentFilter = columnFilters[columnName];
-                                     applyColumnFilter(columnName, e.target.value, currentFilter?.value || '', currentFilter?.values || []);
-                                   }}
-                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                 >
-                                   <option value="contains">Contains</option>
-                                   <option value="equals">Equals</option>
-                                   <option value="starts_with">Starts with</option>
-                                   <option value="ends_with">Ends with</option>
-                                   <option value="greater_than">Greater than</option>
-                                   <option value="less_than">Less than</option>
-                                   <option value="greater_equal">Greater than or equal</option>
-                                   <option value="less_equal">Less than or equal</option>
-                                   <option value="is_empty">Is empty</option>
-                                   <option value="is_not_empty">Is not empty</option>
-                                   <option value="is_one_of">Is one of</option>
-                                 </select>
-                                 </div>
-                                 
-                               {/* Filter Value Input (for text/number filters) */}
-                               {!['is_empty', 'is_not_empty', 'is_one_of'].includes(columnFilters[columnName]?.type || 'contains') && (
-                                 <div className="mb-3">
-                                   <label className="block text-xs font-medium text-gray-700 mb-1">Filter value:</label>
-                                   <input
-                                     type="text"
-                                     value={columnFilters[columnName]?.value || ''}
-                                     onChange={(e) => {
-                                       const currentFilter = columnFilters[columnName];
-                                       applyColumnFilter(columnName, currentFilter?.type || 'contains', e.target.value, currentFilter?.values || []);
-                                     }}
-                                     placeholder="Enter filter value..."
-                                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                   />
-                                 </div>
-                               )}
+            <table className="min-w-full border-collapse">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-gray-50">
+                  <th
+                    className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-30"
+                    style={{ minWidth: "64px", maxWidth: "64px" }}
+                  ></th>
+                  {Array.from({ length: 40 }, (_, i) => {
+                    const columnName = getColumnName(i + 1);
+                    const hasFilter = activeFilters[columnName];
+                    const hasColumnFilter = columnFilters[columnName];
+                    const columnWidth = getColumnWidth(columnName);
 
-                               {/* Value Selection (for is_one_of filter) */}
-                               {columnFilters[columnName]?.type === 'is_one_of' && (
-                                 <div className="mb-3">
-                                   <div className="text-xs text-gray-600 mb-2">
-                                     Select values to include:
-                                   </div>
-                                   <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2">
-                                 {getColumnFilterOptions(columnName).map((value, index) => (
-                                       <label key={index} className="flex items-center space-x-2 text-sm mb-1">
-                                     <input
-                                       type="checkbox"
-                                       checked={columnFilters[columnName]?.values?.includes(value) || false}
-                                       onChange={(e) => {
-                                         const currentValues = columnFilters[columnName]?.values || [];
-                                         const newValues = e.target.checked
-                                           ? [...currentValues, value]
-                                           : currentValues.filter(v => v !== value);
-                                             applyColumnFilter(columnName, 'is_one_of', '', newValues);
-                                       }}
-                                       className="rounded"
-                                     />
-                                         <span className="truncate">{value || '(empty)'}</span>
-                                   </label>
-                                 ))}
-                                   </div>
-                                   <div className="flex gap-2 mt-2">
-                                   <button
-                                     onClick={() => {
-                                       const allValues = getColumnFilterOptions(columnName);
-                                         applyColumnFilter(columnName, 'is_one_of', '', allValues);
-                                     }}
-                                     className="text-xs text-blue-600 hover:text-blue-800"
-                                   >
-                                     Select all
-                                   </button>
-                                   <button
-                                       onClick={() => applyColumnFilter(columnName, 'is_one_of', '', [])}
-                                       className="text-xs text-blue-600 hover:text-blue-800"
-                                   >
-                                     Clear all
-                                   </button>
-                                 </div>
-                                 </div>
-                               )}
-                               
-                               {/* Action Buttons */}
-                               <div className="flex gap-2 pt-2 border-t">
-                                 <button
-                                   onClick={() => {
-                                     applyColumnFilter(columnName, columnFilters[columnName]?.type || 'contains', columnFilters[columnName]?.value || '', columnFilters[columnName]?.values || []);
-                                     setShowFilterDropdown(null);
-                                   }}
-                                   className="flex-1 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                 >
-                                   Apply
-                                 </button>
-                                 <button
-                                   onClick={() => {
-                                     applyColumnFilter(columnName, '', '', []);
-                                     setShowFilterDropdown(null);
-                                   }}
-                                   className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                                 >
-                                   Clear
-                                 </button>
-                               </div>
-                             </div>
-                           </div>
-                         )}
-                       </th>
-                     );
-                   })}
-                 </tr>
-               </thead>
-               <tbody>
-                 {Array.from({ length: 100 }, (_, rowIndex) => {
-                   // Apply row filtering
-                   if (!isRowVisible(rowIndex)) return null;
+                    return (
+                      <th
+                        key={i}
+                        className="border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100 group"
+                        style={{
+                          minWidth: `${columnWidth}px`,
+                          width: `${columnWidth}px`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between h-full px-1">
+                          <div className="flex items-center justify-center flex-1">
+                            {columnName}
+                            {hasFilter && (
+                              <Filter
+                                size={12}
+                                className="ml-1 text-blue-600"
+                              />
+                            )}
+                            {hasColumnFilter && (
+                              <div className="ml-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                            )}
+                          </div>
 
-                   return (
-                     <tr key={rowIndex} style={{ height: `${getRowHeight(rowIndex + 1)}px` }}>
-                       <td className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10 group" style={{ minWidth: '64px', maxWidth: '64px' }}>
-                         <div className="flex items-center justify-center h-full">
-                         {rowIndex + 1}
-                         </div>
-                         
-                         {/* Row resize handle */}
-                         <div
-                           className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
-                           onMouseDown={(e) => {
-                             e.preventDefault();
-                             e.stopPropagation();
-                             startResize('row', rowIndex + 1, e);
-                           }}
-                         />
-                       </td>
+                          {/* Filter button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowFilterDropdown(
+                                showFilterDropdown === columnName
+                                  ? null
+                                  : columnName
+                              );
+                            }}
+                            className={`opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity ${
+                              hasColumnFilter ? "opacity-100" : ""
+                            }`}
+                            title="Filter"
+                          >
+                            <Filter
+                              size={12}
+                              className={
+                                hasColumnFilter
+                                  ? "text-blue-600"
+                                  : "text-gray-600"
+                              }
+                            />
+                          </button>
+
+                          {/* Resize handle */}
+                          <div
+                            className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              startResize("column", columnName, e);
+                            }}
+                          />
+                        </div>
+
+                        {/* Enhanced Filter dropdown */}
+                        {showFilterDropdown === columnName && (
+                          <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
+                            <div className="p-3">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-sm">
+                                  Filter by {columnName}
+                                </h4>
+                                <button
+                                  onClick={() => setShowFilterDropdown(null)}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+
+                              {/* Filter Type Selection */}
+                              <div className="mb-3">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Filter type:
+                                </label>
+                                <select
+                                  value={
+                                    columnFilters[columnName]?.type ||
+                                    "contains"
+                                  }
+                                  onChange={(e) => {
+                                    const currentFilter =
+                                      columnFilters[columnName];
+                                    applyColumnFilter(
+                                      columnName,
+                                      e.target.value,
+                                      currentFilter?.value || "",
+                                      currentFilter?.values || []
+                                    );
+                                  }}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                  <option value="contains">Contains</option>
+                                  <option value="equals">Equals</option>
+                                  <option value="starts_with">
+                                    Starts with
+                                  </option>
+                                  <option value="ends_with">Ends with</option>
+                                  <option value="greater_than">
+                                    Greater than
+                                  </option>
+                                  <option value="less_than">Less than</option>
+                                  <option value="greater_equal">
+                                    Greater than or equal
+                                  </option>
+                                  <option value="less_equal">
+                                    Less than or equal
+                                  </option>
+                                  <option value="is_empty">Is empty</option>
+                                  <option value="is_not_empty">
+                                    Is not empty
+                                  </option>
+                                  <option value="is_one_of">Is one of</option>
+                                </select>
+                              </div>
+
+                              {/* Filter Value Input (for text/number filters) */}
+                              {![
+                                "is_empty",
+                                "is_not_empty",
+                                "is_one_of",
+                              ].includes(
+                                columnFilters[columnName]?.type || "contains"
+                              ) && (
+                                <div className="mb-3">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Filter value:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={
+                                      columnFilters[columnName]?.value || ""
+                                    }
+                                    onChange={(e) => {
+                                      const currentFilter =
+                                        columnFilters[columnName];
+                                      applyColumnFilter(
+                                        columnName,
+                                        currentFilter?.type || "contains",
+                                        e.target.value,
+                                        currentFilter?.values || []
+                                      );
+                                    }}
+                                    placeholder="Enter filter value..."
+                                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                              )}
+
+                              {/* Value Selection (for is_one_of filter) */}
+                              {columnFilters[columnName]?.type ===
+                                "is_one_of" && (
+                                <div className="mb-3">
+                                  <div className="text-xs text-gray-600 mb-2">
+                                    Select values to include:
+                                  </div>
+                                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2">
+                                    {getColumnFilterOptions(columnName).map(
+                                      (value, index) => (
+                                        <label
+                                          key={index}
+                                          className="flex items-center space-x-2 text-sm mb-1"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={
+                                              columnFilters[
+                                                columnName
+                                              ]?.values?.includes(value) ||
+                                              false
+                                            }
+                                            onChange={(e) => {
+                                              const currentValues =
+                                                columnFilters[columnName]
+                                                  ?.values || [];
+                                              const newValues = e.target.checked
+                                                ? [...currentValues, value]
+                                                : currentValues.filter(
+                                                    (v) => v !== value
+                                                  );
+                                              applyColumnFilter(
+                                                columnName,
+                                                "is_one_of",
+                                                "",
+                                                newValues
+                                              );
+                                            }}
+                                            className="rounded"
+                                          />
+                                          <span className="truncate">
+                                            {value || "(empty)"}
+                                          </span>
+                                        </label>
+                                      )
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      onClick={() => {
+                                        const allValues =
+                                          getColumnFilterOptions(columnName);
+                                        applyColumnFilter(
+                                          columnName,
+                                          "is_one_of",
+                                          "",
+                                          allValues
+                                        );
+                                      }}
+                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      Select all
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        applyColumnFilter(
+                                          columnName,
+                                          "is_one_of",
+                                          "",
+                                          []
+                                        )
+                                      }
+                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      Clear all
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-2 pt-2 border-t">
+                                <button
+                                  onClick={() => {
+                                    applyColumnFilter(
+                                      columnName,
+                                      columnFilters[columnName]?.type ||
+                                        "contains",
+                                      columnFilters[columnName]?.value || "",
+                                      columnFilters[columnName]?.values || []
+                                    );
+                                    setShowFilterDropdown(null);
+                                  }}
+                                  className="flex-1 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                                >
+                                  Apply
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    applyColumnFilter(columnName, "", "", []);
+                                    setShowFilterDropdown(null);
+                                  }}
+                                  className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 100 }, (_, rowIndex) => {
+                  // Apply row filtering
+                  if (!isRowVisible(rowIndex)) return null;
+
+                  return (
+                    <tr
+                      key={rowIndex}
+                      style={{ height: `${getRowHeight(rowIndex + 1)}px` }}
+                    >
+                      <td
+                        className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10 group"
+                        style={{ minWidth: "64px", maxWidth: "64px" }}
+                      >
+                        <div className="flex items-center justify-center h-full">
+                          {rowIndex + 1}
+                        </div>
+
+                        {/* Row resize handle */}
+                        <div
+                          className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            startResize("row", rowIndex + 1, e);
+                          }}
+                        />
+                      </td>
                       {Array.from({ length: 40 }, (_, colIndex) => {
                         const cellId =
                           getColumnName(colIndex + 1) + (rowIndex + 1);
@@ -3208,7 +3621,7 @@ const GoogleSheetsClone = () => {
                               minWidth: `${columnWidth}px`,
                               maxWidth: `${columnWidth}px`,
                               height: `${rowHeight}px`,
-                              tableLayout: 'fixed'
+                              tableLayout: "fixed",
                             }}
                             onClick={(e) => {
                               e.preventDefault();
@@ -3233,18 +3646,29 @@ const GoogleSheetsClone = () => {
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    updateCellLocal(selectedCell, cellEditValue);
+                                    updateCellLocal(
+                                      selectedCell,
+                                      cellEditValue
+                                    );
                                     setIsEditing(false);
                                     // Move to next row
-                                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                                    const match =
+                                      selectedCell.match(/([A-Z]+)(\d+)/);
                                     if (match) {
-                                      const nextCell = match[1] + (parseInt(match[2]) + 1);
+                                      const nextCell =
+                                        match[1] + (parseInt(match[2]) + 1);
                                       handleCellClick(nextCell);
                                     }
                                   } else if (e.key === "Escape") {
                                     e.preventDefault();
                                     setIsEditing(false);
-                                    setCellEditValue(cellData ? cellData.formula || cellData.value || "" : "");
+                                    setCellEditValue(
+                                      cellData
+                                        ? cellData.formula ||
+                                            cellData.value ||
+                                            ""
+                                        : ""
+                                    );
                                   }
                                 }}
                                 onFocus={() => {
@@ -3260,14 +3684,22 @@ const GoogleSheetsClone = () => {
                                   if (isNavigatingRef.current) {
                                     return;
                                   }
-                                  
+
                                   // Check if focus is moving to another cell input
                                   const relatedTarget = e.relatedTarget;
-                                  const isMovingToAnotherCell = relatedTarget && relatedTarget.tagName === 'INPUT' && relatedTarget.className.includes('border-none');
-                                  
+                                  const isMovingToAnotherCell =
+                                    relatedTarget &&
+                                    relatedTarget.tagName === "INPUT" &&
+                                    relatedTarget.className.includes(
+                                      "border-none"
+                                    );
+
                                   if (!isMovingToAnotherCell) {
                                     // Save immediately without delay to prevent focus issues
-                                    updateCellLocal(selectedCell, cellEditValue);
+                                    updateCellLocal(
+                                      selectedCell,
+                                      cellEditValue
+                                    );
                                     setIsEditing(false);
                                   }
                                 }}
@@ -3276,7 +3708,11 @@ const GoogleSheetsClone = () => {
                               />
                             ) : (
                               <div
-                                className={`px-1 text-xs ${cellData?.style?.textWrap === 'wrap' ? 'break-words' : 'truncate'}`}
+                                className={`px-1 text-xs ${
+                                  cellData?.style?.textWrap === "wrap"
+                                    ? "break-words"
+                                    : "truncate"
+                                }`}
                                 style={getCellStyle(cellId)}
                               >
                                 {formatCellValue(cellData)}
@@ -3292,7 +3728,7 @@ const GoogleSheetsClone = () => {
             </table>
           </div>
         </div>
-        
+
         {/* Sheet Tabs - Fixed at bottom */}
         <div className="bg-gray-50 border-t px-4 py-2 w-full z-50 fixed bottom-0 right-0">
           <div className="flex items-center space-x-2">
@@ -3309,7 +3745,10 @@ const GoogleSheetsClone = () => {
                 {sheet.name}
               </button>
             ))}
-            <button onClick={addSheet} className="p-1 hover:bg-gray-200 rounded">
+            <button
+              onClick={addSheet}
+              className="p-1 hover:bg-gray-200 rounded"
+            >
               <Plus size={16} />
             </button>
           </div>
