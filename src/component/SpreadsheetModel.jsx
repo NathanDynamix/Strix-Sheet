@@ -51,10 +51,10 @@ import {
 
 const GoogleSheetsClone = () => {
   const { currentUser, logout } = useAuth();
-  const {
-    currentSpreadsheet,
-    updateCell,
-    autoSave,
+  const { 
+    currentSpreadsheet, 
+    updateCell, 
+    autoSave, 
     getCurrentSheetData,
     getCellData,
   } = useSpreadsheet();
@@ -132,6 +132,12 @@ const GoogleSheetsClone = () => {
   const [showTextRotationDropdown, setShowTextRotationDropdown] =
     useState(false);
 
+  // Auto-save functionality
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState(null);
+  const [autoSaveInterval, setAutoSaveInterval] = useState(null);
+
   // Text rotation options
   const textRotationOptions = [
     { label: "0°", value: 0 },
@@ -141,13 +147,13 @@ const GoogleSheetsClone = () => {
     { label: "180°", value: 180 },
     { label: "Vertical", value: "vertical" },
   ];
-
+  
   // Google Sheets-like filter states
   const [columnFilters, setColumnFilters] = useState({});
   const [filterDropdowns, setFilterDropdowns] = useState({});
   const [showFilterDropdown, setShowFilterDropdown] = useState(null);
   const [filterOptions, setFilterOptions] = useState({});
-
+  
   // Cell resizing states
   const [columnWidths, setColumnWidths] = useState({});
   const [rowHeights, setRowHeights] = useState({});
@@ -175,11 +181,11 @@ const GoogleSheetsClone = () => {
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showDataMenu, setShowDataMenu] = useState(false);
-
+  
   // Clipboard functionality
   const [clipboard, setClipboard] = useState(null);
   const [clipboardType, setClipboardType] = useState(null); // 'copy' or 'cut'
-
+  
   // Undo/Redo functionality
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -238,15 +244,15 @@ const GoogleSheetsClone = () => {
     (column, filterType, filterValue, filterValues = []) => {
       if (!filterValue && filterValues.length === 0) {
         setColumnFilters((prev) => {
-          const newFilters = { ...prev };
-          delete newFilters[column];
-          return newFilters;
-        });
-        return;
-      }
+        const newFilters = { ...prev };
+        delete newFilters[column];
+        return newFilters;
+      });
+      return;
+    }
 
       setColumnFilters((prev) => ({
-        ...prev,
+      ...prev,
         [column]: {
           type: filterType,
           value: filterValue,
@@ -566,7 +572,7 @@ const GoogleSheetsClone = () => {
     setShowInsertMenu(false);
     setShowFormatMenu(false);
     setShowDataMenu(false);
-
+    
     // Toggle the clicked menu
     switch (menuName) {
       case "file":
@@ -601,11 +607,16 @@ const GoogleSheetsClone = () => {
 
   const handleSaveSpreadsheet = async () => {
     setShowFileMenu(false);
+    setIsSaving(true);
     try {
       await autoSave();
+      setHasUnsavedChanges(false);
+      setLastSavedTime(new Date());
       showSuccess("Spreadsheet saved successfully!");
     } catch (error) {
       showError("Failed to save spreadsheet. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -836,6 +847,9 @@ const GoogleSheetsClone = () => {
 
     setSheets(newSheets);
     console.log("Updated sheets:", newSheets);
+    
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
 
     // Update backend if we have a current spreadsheet
     if (currentSpreadsheet) {
@@ -864,11 +878,11 @@ const GoogleSheetsClone = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
       console.log("Cutting cell data:", cellData);
-
+      
       // Store the cell data in clipboard
       setClipboard(cellData);
       setClipboardType("cut");
-
+      
       // Clear the cell and update formula bar
       updateCellLocal(selectedCell, "");
       setFormulaBarValue("");
@@ -891,7 +905,7 @@ const GoogleSheetsClone = () => {
     if (selectedCell) {
       const cellData = getLocalCellData(selectedCell);
       console.log("Copying cell data:", cellData);
-
+      
       setClipboard(cellData);
       setClipboardType("copy");
       showSuccess("Cell copied to clipboard");
@@ -913,10 +927,10 @@ const GoogleSheetsClone = () => {
         formulaToPaste,
         clipboard.style
       );
-
+      
       // Update formula bar to show the pasted content
       setFormulaBarValue(formulaToPaste);
-
+      
       if (clipboardType === "cut") {
         setClipboard(null);
         setClipboardType(null);
@@ -1002,7 +1016,7 @@ const GoogleSheetsClone = () => {
   const getColumnFilterOptions = (column) => {
     const colNum = getColumnNumber(column);
     const values = new Set();
-
+    
     for (let row = 1; row <= 1000; row++) {
       const cellId = getColumnName(colNum) + row;
       const cellData = data[cellId];
@@ -1010,7 +1024,7 @@ const GoogleSheetsClone = () => {
         values.add(cellData.value.toString());
       }
     }
-
+    
     return Array.from(values).sort();
   };
 
@@ -1060,10 +1074,10 @@ const GoogleSheetsClone = () => {
     setResizeType(type);
     setResizeTarget(target);
     setShowResizeIndicator(true);
-
+    
     // Capture initial position and size
     setResizeStartPos({ x: event.clientX, y: event.clientY });
-
+    
     if (type === "column") {
       setResizeStartSize({ width: getColumnWidth(target), height: 0 });
     } else if (type === "row") {
@@ -1073,7 +1087,7 @@ const GoogleSheetsClone = () => {
 
   const handleMouseMove = (e) => {
     if (!isResizing || !resizeTarget) return;
-
+    
     if (resizeType === "column") {
       // Calculate delta from start position
       const deltaX = e.clientX - resizeStartPos.x;
@@ -1109,6 +1123,45 @@ const GoogleSheetsClone = () => {
     }
     return rows.join("\n");
   };
+
+  // Handle beforeunload to prompt user to save before refresh
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (autoSaveInterval) {
+      clearInterval(autoSaveInterval);
+    }
+
+    const interval = setInterval(() => {
+      if (hasUnsavedChanges && !isSaving) {
+        autoSave();
+        setHasUnsavedChanges(false);
+        setLastSavedTime(new Date());
+      }
+    }, 30000); // Auto-save every 30 seconds
+
+    setAutoSaveInterval(interval);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [hasUnsavedChanges, isSaving]);
 
   // Close filter menu, zoom dropdown, and font dropdowns when clicking outside
   useEffect(() => {
@@ -1195,7 +1248,7 @@ const GoogleSheetsClone = () => {
             console.log("Cmd+V pressed, calling handlePaste");
             // Use setTimeout to ensure the paste happens after any other processing
             setTimeout(() => {
-              handlePaste();
+            handlePaste();
             }, 0);
             break;
           case "z":
@@ -1261,7 +1314,7 @@ const GoogleSheetsClone = () => {
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", stopResize);
-
+      
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", stopResize);
@@ -1719,6 +1772,9 @@ const GoogleSheetsClone = () => {
 
     setSheets(newSheets);
 
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
+
     // Force re-render by updating trigger
     setFormatUpdateTrigger((prev) => prev + 1);
   };
@@ -1847,23 +1903,23 @@ const GoogleSheetsClone = () => {
   const handleCellClick = (cellId) => {
     // Set navigation flag to prevent interference
     isNavigatingRef.current = true;
-
+    
     // If we're currently editing a different cell, save it first
     if (isEditing && selectedCell && selectedCell !== cellId) {
       updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
-
+    
     setSelectedCell(cellId);
     const cellData = data[cellId];
     const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
     setFormulaBarValue(cellValue);
     setCellEditValue(cellValue);
     setIsProcessingInput(false);
-
+    
     // Set editing state and focus immediately
     setIsEditing(true);
-
+    
     // Use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
       if (cellInputRef.current) {
@@ -1885,7 +1941,7 @@ const GoogleSheetsClone = () => {
       updateCellLocal(selectedCell, cellEditValue);
       setIsEditing(false);
     }
-
+    
     // Double-click selects all text for replacement
     setSelectedCell(cellId);
     const cellData = data[cellId];
@@ -1893,10 +1949,10 @@ const GoogleSheetsClone = () => {
     setCellEditValue(cellValue);
     setFormulaBarValue(cellValue);
     setIsProcessingInput(false);
-
+    
     // Set editing state immediately
     setIsEditing(true);
-
+    
     // Use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
       if (cellInputRef.current) {
@@ -1923,7 +1979,7 @@ const GoogleSheetsClone = () => {
     // Only handle printable characters, not special keys
     const isPrintableKey =
       e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
-
+    
     // Only handle if we're not already editing, not processing, and not in formula bar
     if (
       !isEditing &&
@@ -1973,7 +2029,7 @@ const GoogleSheetsClone = () => {
       const isCellInput =
         e.target.tagName === "INPUT" &&
         e.target.className.includes("border-none");
-
+      
       if (!isInsideSpreadsheet && isEditing && selectedCell && !isCellInput) {
         updateCellLocal(selectedCell, cellEditValue);
         setIsEditing(false);
@@ -2086,8 +2142,8 @@ const GoogleSheetsClone = () => {
   };
 
   return (
-    <div
-      className="flex flex-col h-screen bg-white main-spreadsheet-container"
+    <div 
+      className="flex flex-col h-screen bg-white main-spreadsheet-container" 
       onKeyDown={handleKeyPress}
       tabIndex={0}
     >
@@ -2095,10 +2151,35 @@ const GoogleSheetsClone = () => {
       <div className="bg-white border-b border-gray-200">
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-4 py-1 bg-white border-b border-gray-200">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
             <h1 className="text-2xl font-bold mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Strix Sheets
             </h1>
+            
+            {/* Save Status Indicator */}
+            <div className="flex items-center space-x-2">
+              {isSaving ? (
+                <div className="flex items-center space-x-1 text-sm text-blue-600">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  <span>Saving...</span>
+                </div>
+              ) : hasUnsavedChanges ? (
+                <div className="flex items-center space-x-1 text-sm text-orange-600">
+                  <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                  <span>Unsaved changes</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-1 text-sm text-green-600">
+                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                  <span>Saved</span>
+                  {lastSavedTime && (
+                    <span className="text-xs text-gray-500">
+                      ({lastSavedTime.toLocaleTimeString()})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Logout Button */}
@@ -2127,7 +2208,7 @@ const GoogleSheetsClone = () => {
         <div className="flex items-center px-4 py-1 bg-white border-b border-gray-200 relative">
           <div className="flex items-center space-x-2">
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("file")}
                 className={`text-md px-2 py-1 rounded ${
                   showFileMenu
@@ -2135,8 +2216,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                File
-              </button>
+              File
+            </button>
               {showFileMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2160,9 +2241,9 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("edit")}
                 className={`text-md px-2 py-1 rounded ${
                   showEditMenu
@@ -2170,8 +2251,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                Edit
-              </button>
+              Edit
+            </button>
               {showEditMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2208,9 +2289,9 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("view")}
                 className={`text-md px-2 py-1 rounded ${
                   showViewMenu
@@ -2218,8 +2299,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                View
-              </button>
+              View
+            </button>
               {showViewMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2256,9 +2337,9 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("insert")}
                 className={`text-md px-2 py-1 rounded ${
                   showInsertMenu
@@ -2266,8 +2347,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                Insert
-              </button>
+              Insert
+            </button>
               {showInsertMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2288,9 +2369,9 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("format")}
                 className={`text-md px-2 py-1 rounded ${
                   showFormatMenu
@@ -2298,8 +2379,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                Format
-              </button>
+              Format
+            </button>
               {showFormatMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2323,9 +2404,9 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <div className="relative">
-              <button
+              <button 
                 onClick={() => handleMenuClick("data")}
                 className={`text-md px-2 py-1 rounded ${
                   showDataMenu
@@ -2333,8 +2414,8 @@ const GoogleSheetsClone = () => {
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                Data
-              </button>
+              Data
+            </button>
               {showDataMenu && (
                 <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
                   <button
@@ -2358,7 +2439,7 @@ const GoogleSheetsClone = () => {
                 </div>
               )}
             </div>
-
+            
             <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
               Tools
             </button>
@@ -2391,6 +2472,17 @@ const GoogleSheetsClone = () => {
               <Redo size={16} className="text-gray-600" />
             </button>
 
+            {/* Save Button */}
+            <button 
+              onClick={handleSaveSpreadsheet} 
+              className={`p-2 hover:bg-gray-100 rounded ${hasUnsavedChanges ? 'bg-blue-50' : ''}`}
+              title="Save (Ctrl+S)"
+            >
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+            </button>
+
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
@@ -2405,16 +2497,16 @@ const GoogleSheetsClone = () => {
                   className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                viewBox="0 0 24 24"
+              >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M20 12H4"
                   />
-                </svg>
-              </button>
+              </svg>
+            </button>
 
               <div className="relative">
                 <button
@@ -2435,11 +2527,11 @@ const GoogleSheetsClone = () => {
                         }`}
                       >
                         {level}%
-                      </button>
+              </button>
                     ))}
                   </div>
                 )}
-              </div>
+            </div>
 
               <button
                 onClick={handleZoomIn}
@@ -2630,7 +2722,7 @@ const GoogleSheetsClone = () => {
                 <span className="text-xs text-gray-600">.00</span>
                 <svg
                   className="w-3 h-3 text-gray-600 ml-1"
-                  fill="currentColor"
+                fill="currentColor"
                   viewBox="0 0 20 20"
                 >
                   <path
@@ -2638,7 +2730,7 @@ const GoogleSheetsClone = () => {
                     d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                     clipRule="evenodd"
                   />
-                </svg>
+              </svg>
               </div>
             </button>
 
@@ -2652,7 +2744,7 @@ const GoogleSheetsClone = () => {
                 <span className="text-xs text-gray-600">.0</span>
                 <svg
                   className="w-3 h-3 text-gray-600 ml-1"
-                  fill="currentColor"
+                fill="currentColor"
                   viewBox="0 0 20 20"
                 >
                   <path
@@ -2660,7 +2752,7 @@ const GoogleSheetsClone = () => {
                     d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
                     clipRule="evenodd"
                   />
-                </svg>
+              </svg>
               </div>
             </button>
 
@@ -2685,14 +2777,10 @@ const GoogleSheetsClone = () => {
                   style={{ fontFamily: getCurrentFontFamily() }}
                 >
                   {getCurrentFontFamily()}
-                </button>
+              </button>
 
                 {showFontDropdown && (
                   <div className="font-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
-                    {console.log(
-                      "Rendering font dropdown with fonts:",
-                      fontFamilies
-                    )}
                     {fontFamilies.map((font) => (
                       <button
                         key={font}
@@ -2705,7 +2793,7 @@ const GoogleSheetsClone = () => {
                         style={{ fontFamily: font }}
                       >
                         {font}
-                      </button>
+                </button>
                     ))}
                   </div>
                 )}
@@ -2726,7 +2814,7 @@ const GoogleSheetsClone = () => {
                   className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-8 text-center"
                 >
                   {getCurrentFontSize()}
-                </button>
+                  </button>
 
                 {showFontSizeDropdown && (
                   <div className="font-size-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-16 max-h-48 overflow-y-auto">
@@ -2741,9 +2829,9 @@ const GoogleSheetsClone = () => {
                         }`}
                       >
                         {size}
-                      </button>
+                  </button>
                     ))}
-                  </div>
+                </div>
                 )}
               </div>
             </div>
@@ -2824,7 +2912,7 @@ const GoogleSheetsClone = () => {
               title="Wrap Text"
             >
               <WrapText size={16} className="text-gray-600" />
-            </button>
+              </button>
 
             {/* Text Rotation */}
             <div className="relative">
@@ -2837,7 +2925,7 @@ const GoogleSheetsClone = () => {
               >
                 <RotateCcw size={16} className="text-gray-600" />
                 <ChevronDown size={12} className="ml-1" />
-              </button>
+            </button>
 
               {showTextRotationDropdown && (
                 <div className="text-rotation-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
@@ -2846,290 +2934,290 @@ const GoogleSheetsClone = () => {
                       Text Rotation
                     </div>
                     {textRotationOptions.map((option) => (
-                      <button
+              <button
                         key={option.value}
                         onClick={() => handleTextRotation(option.value)}
                         className="block w-full text-left px-2 py-1 hover:bg-gray-100 text-sm"
                       >
                         {option.label}
-                      </button>
+              </button>
                     ))}
-                  </div>
+            </div>
                 </div>
               )}
-            </div>
+          </div>
 
             {/* Separator */}
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
             <div className="flex flex-wrap items-start space-x-2 justify-start">
               <div className="">
-                <button
-                  onClick={() => setShowFunctionMenu(!showFunctionMenu)}
-                  className="p-2 hover:bg-gray-100 rounded flex items-center"
-                >
-                  <Calculator size={16} />
-                  <ChevronDown size={12} className="ml-1" />
-                </button>
+            <button
+              onClick={() => setShowFunctionMenu(!showFunctionMenu)}
+              className="p-2 hover:bg-gray-100 rounded flex items-center"
+            >
+              <Calculator size={16} />
+              <ChevronDown size={12} className="ml-1" />
+            </button>
 
-                {showFunctionMenu && (
-                  <div className="absolute top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg z-50">
-                    <div className="p-2 border-b">
-                      <input
-                        type="text"
-                        placeholder="Search functions..."
-                        className="w-full px-2 py-1 border rounded text-sm"
-                        value={formulaSearch}
-                        onChange={(e) => setFormulaSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {Object.entries(functionCategories).map(
-                        ([category, funcs]) => (
-                          <div key={category} className="p-2">
-                            <div className="font-semibold text-sm text-gray-600 mb-1">
-                              {category}
-                            </div>
-                            {funcs
-                              .filter(
-                                (func) =>
-                                  !formulaSearch ||
-                                  func
-                                    .toLowerCase()
-                                    .includes(formulaSearch.toLowerCase())
-                              )
-                              .map((func) => (
-                                <button
-                                  key={func}
-                                  onClick={() => insertFunction(func)}
-                                  className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                                >
-                                  {func}
-                                </button>
-                              ))}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="">
-                <button
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <Palette size={16} />
-                </button>
-
-                {showColorPicker && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
-                    <div className="grid grid-cols-6 gap-2 mb-3">
-                      {[
-                        "#000000",
-                        "#FF0000",
-                        "#00FF00",
-                        "#0000FF",
-                        "#FFFF00",
-                        "#FF00FF",
-                        "#00FFFF",
-                        "#FFA500",
-                        "#800080",
-                        "#008000",
-                        "#FFC0CB",
-                        "#A52A2A",
-                      ].map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => {
-                            formatCell({ color });
-                            setShowColorPicker(false);
-                          }}
-                          className="w-6 h-6 rounded border"
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                    <div className="border-t pt-2">
-                      <div className="text-sm font-medium mb-2">Background</div>
-                      <div className="grid grid-cols-6 gap-2">
-                        {[
-                          "#FFFFFF",
-                          "#F0F0F0",
-                          "#FFEEEE",
-                          "#EEFFEE",
-                          "#EEEEFF",
-                          "#FFFFEE",
-                          "#FFEEFF",
-                          "#EEFFFF",
-                          "#FFE4B5",
-                          "#E6E6FA",
-                          "#F0E68C",
-                          "#FFB6C1",
-                        ].map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => {
-                              formatCell({ backgroundColor: color });
-                              setShowColorPicker(false);
-                            }}
-                            className="w-6 h-6 rounded border"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={deleteCell}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <Trash2 size={16} />
-              </button>
-
-              {/* Filter Button */}
-              <div className="">
-                <button
-                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                  className={`p-2 rounded flex items-center ${
-                    Object.keys(activeFilters).length > 0
-                      ? "bg-blue-100 text-blue-600"
-                      : "hover:bg-gray-100"
-                  }`}
-                  title="Create a filter"
-                >
-                  <Filter size={16} />
-                  {Object.keys(activeFilters).length > 0 && (
-                    <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
-                      {Object.keys(activeFilters).length}
-                    </span>
-                  )}
-                </button>
-
-                {filterMenuOpen && (
-                  <div className="filter-menu absolute top-full right-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-gray-800">
-                        Create a filter
-                      </h3>
-                      <button
-                        onClick={() => setFilterMenuOpen(false)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Filter by column
-                        </label>
-                        <select
-                          value={filterColumn}
-                          onChange={(e) => setFilterColumn(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {Array.from({ length: 40 }, (_, i) => (
-                            <option key={i} value={getColumnName(i + 1)}>
-                              Column {getColumnName(i + 1)}
-                            </option>
+            {showFunctionMenu && (
+              <div className="absolute top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg z-50">
+                <div className="p-2 border-b">
+                  <input
+                    type="text"
+                    placeholder="Search functions..."
+                    className="w-full px-2 py-1 border rounded text-sm"
+                    value={formulaSearch}
+                    onChange={(e) => setFormulaSearch(e.target.value)}
+                  />
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {Object.entries(functionCategories).map(
+                    ([category, funcs]) => (
+                      <div key={category} className="p-2">
+                        <div className="font-semibold text-sm text-gray-600 mb-1">
+                          {category}
+                        </div>
+                        {funcs
+                          .filter(
+                            (func) =>
+                              !formulaSearch ||
+                              func
+                                .toLowerCase()
+                                .includes(formulaSearch.toLowerCase())
+                          )
+                          .map((func) => (
+                            <button
+                              key={func}
+                              onClick={() => insertFunction(func)}
+                              className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                            >
+                              {func}
+                            </button>
                           ))}
-                        </select>
                       </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+              <div className="">
+            <button
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="p-2 hover:bg-gray-100 rounded"
+            >
+              <Palette size={16} />
+            </button>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Filter value
-                        </label>
-                        <input
-                          type="text"
-                          value={filterValue}
-                          onChange={(e) => setFilterValue(e.target.value)}
-                          placeholder="Enter filter value..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+            {showColorPicker && (
+              <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
+                <div className="grid grid-cols-6 gap-2 mb-3">
+                  {[
+                    "#000000",
+                    "#FF0000",
+                    "#00FF00",
+                    "#0000FF",
+                    "#FFFF00",
+                    "#FF00FF",
+                    "#00FFFF",
+                    "#FFA500",
+                    "#800080",
+                    "#008000",
+                    "#FFC0CB",
+                    "#A52A2A",
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        formatCell({ color });
+                        setShowColorPicker(false);
+                      }}
+                      className="w-6 h-6 rounded border"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <div className="border-t pt-2">
+                  <div className="text-sm font-medium mb-2">Background</div>
+                  <div className="grid grid-cols-6 gap-2">
+                    {[
+                      "#FFFFFF",
+                      "#F0F0F0",
+                      "#FFEEEE",
+                      "#EEFFEE",
+                      "#EEEEFF",
+                      "#FFFFEE",
+                      "#FFEEFF",
+                      "#EEFFFF",
+                      "#FFE4B5",
+                      "#E6E6FA",
+                      "#F0E68C",
+                      "#FFB6C1",
+                    ].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => {
+                          formatCell({ backgroundColor: color });
+                          setShowColorPicker(false);
+                        }}
+                        className="w-6 h-6 rounded border"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            applyFilter(filterColumn, filterValue);
-                            setFilterValue("");
-                          }}
-                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                        >
-                          Apply Filter
-                        </button>
-                        <button
-                          onClick={clearAllFilters}
-                          className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm flex items-center"
-                        >
-                          <FilterX size={14} className="mr-1" />
-                          Clear All
-                        </button>
-                      </div>
+          <button
+            onClick={deleteCell}
+            className="p-2 hover:bg-gray-100 rounded"
+          >
+            <Trash2 size={16} />
+          </button>
+
+          {/* Filter Button */}
+              <div className="">
+            <button
+              onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+              className={`p-2 rounded flex items-center ${
+                Object.keys(activeFilters).length > 0
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
+              }`}
+              title="Create a filter"
+            >
+              <Filter size={16} />
+              {Object.keys(activeFilters).length > 0 && (
+                <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
+                  {Object.keys(activeFilters).length}
+                </span>
+              )}
+            </button>
+
+            {filterMenuOpen && (
+              <div className="filter-menu absolute top-full right-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">
+                    Create a filter
+                  </h3>
+                  <button
+                    onClick={() => setFilterMenuOpen(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Filter by column
+                    </label>
+                    <select
+                      value={filterColumn}
+                      onChange={(e) => setFilterColumn(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {Array.from({ length: 40 }, (_, i) => (
+                        <option key={i} value={getColumnName(i + 1)}>
+                          Column {getColumnName(i + 1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Filter value
+                    </label>
+                    <input
+                      type="text"
+                      value={filterValue}
+                      onChange={(e) => setFilterValue(e.target.value)}
+                      placeholder="Enter filter value..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        applyFilter(filterColumn, filterValue);
+                        setFilterValue("");
+                      }}
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      Apply Filter
+                    </button>
+                    <button
+                      onClick={clearAllFilters}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm flex items-center"
+                    >
+                      <FilterX size={14} className="mr-1" />
+                      Clear All
+                    </button>
+                  </div>
 
                       {Object.keys(columnFilters).length > 0 && (
-                        <div className="border-t pt-3">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">
-                            Active Filters:
-                          </h4>
-                          <div className="space-y-1">
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                        Active Filters:
+                      </h4>
+                      <div className="space-y-1">
                             {Object.entries(columnFilters).map(
                               ([column, filter]) => (
-                                <div
-                                  key={column}
-                                  className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
-                                >
-                                  <span>
+                            <div
+                              key={column}
+                              className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
+                            >
+                              <span>
                                     {column}: {filter.type.replace("_", " ")}{" "}
                                     {filter.value && `"${filter.value}"`}
                                     {filter.values &&
                                       filter.values.length > 0 &&
                                       `(${filter.values.length} values)`}
-                                  </span>
-                                  <button
+                              </span>
+                              <button
                                     onClick={() =>
                                       applyColumnFilter(column, "", "", [])
                                     }
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              </div>
+            )}
               </div>
             </div>
           </div>
 
-          {/* Right side - Action buttons */}
-          <div className="flex items-center space-x-2">
-            <button
+           {/* Right side - Action buttons */}
+           <div className="flex items-center space-x-2">
+             <button 
               onClick={() => navigate("/dashboard")}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
-            >
-              <BarChart size={14} />
-              <span>Dashboard</span>
-            </button>
-            <button
+               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
+             >
+               <BarChart size={14} />
+               <span>Dashboard</span>
+             </button>
+             <button 
               onClick={() => navigate("/spreadsheet-dashboard")}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
-            >
-              <FileSpreadsheet size={14} />
-              <span>My Sheets</span>
-            </button>
-            <button
+               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
+             >
+               <FileSpreadsheet size={14} />
+               <span>My Sheets</span>
+             </button>
+            <button 
               onClick={() => navigate("/create-chart")}
               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
             >
@@ -3176,7 +3264,7 @@ const GoogleSheetsClone = () => {
             </button>
           </div>
           <div className="flex-1">
-            <div
+            <div 
               className="flex items-center border border-gray-300 rounded bg-white cursor-text"
               onClick={() => {
                 setTimeout(() => {
@@ -3192,49 +3280,49 @@ const GoogleSheetsClone = () => {
                 }, 0);
               }}
             >
-              <input
-                ref={formulaBarInputRef}
-                type="text"
-                value={formulaBarValue}
-                onChange={(e) => setFormulaBarValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && selectedCell) {
-                    updateCellLocal(selectedCell, formulaBarValue);
-                    // Move to next row
-                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                    if (match) {
-                      const nextCell = match[1] + (parseInt(match[2]) + 1);
-                      handleCellClick(nextCell);
-                    }
-                  } else if (e.key === "Tab" && selectedCell) {
-                    e.preventDefault();
-                    updateCellLocal(selectedCell, formulaBarValue);
-                    // Move to next column
-                    const match = selectedCell.match(/([A-Z]+)(\d+)/);
-                    if (match) {
-                      const colNum = getColumnNumber(match[1]);
-                      const nextCell = getColumnName(colNum + 1) + match[2];
-                      handleCellClick(nextCell);
-                    }
-                  }
-                }}
-                onFocus={() => setIsEditing(true)}
-                onBlur={() => {
-                  setTimeout(() => {
-                    if (selectedCell) {
+                <input
+                  ref={formulaBarInputRef}
+                  type="text"
+                  value={formulaBarValue}
+                  onChange={(e) => setFormulaBarValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && selectedCell) {
                       updateCellLocal(selectedCell, formulaBarValue);
+                      // Move to next row
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const nextCell = match[1] + (parseInt(match[2]) + 1);
+                        handleCellClick(nextCell);
+                      }
+                    } else if (e.key === "Tab" && selectedCell) {
+                      e.preventDefault();
+                      updateCellLocal(selectedCell, formulaBarValue);
+                      // Move to next column
+                      const match = selectedCell.match(/([A-Z]+)(\d+)/);
+                      if (match) {
+                        const colNum = getColumnNumber(match[1]);
+                        const nextCell = getColumnName(colNum + 1) + match[2];
+                        handleCellClick(nextCell);
+                      }
                     }
-                    setIsEditing(false);
-                  }, 150);
-                }}
-                onMouseUp={(e) => {
-                  // Allow normal text selection behavior
-                  e.stopPropagation();
-                }}
-                className="flex-1 px-3 py-1 focus:outline-none"
-                placeholder="Enter value or formula (start with =)"
-                autoComplete="off"
-              />
+                  }}
+                  onFocus={() => setIsEditing(true)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (selectedCell) {
+                        updateCellLocal(selectedCell, formulaBarValue);
+                      }
+                      setIsEditing(false);
+                    }, 150);
+                  }}
+                  onMouseUp={(e) => {
+                    // Allow normal text selection behavior
+                    e.stopPropagation();
+                  }}
+                  className="flex-1 px-3 py-1 focus:outline-none"
+                  placeholder="Enter value or formula (start with =)"
+                  autoComplete="off"
+                />
               <button className="px-2 py-1 text-gray-400 hover:text-gray-600 border-l border-gray-300">
                 <svg
                   className="w-4 h-4"
@@ -3273,7 +3361,7 @@ const GoogleSheetsClone = () => {
               : `Height: ${Math.round(getRowHeight(resizeTarget))}px`}
           </div>
         )}
-
+        
         {/* Google Sheets Style Spreadsheet */}
         <div
           className="flex-1 overflow-auto bg-white mb-12"
@@ -3288,46 +3376,46 @@ const GoogleSheetsClone = () => {
               height: `${100 / (zoomLevel / 100)}%`,
             }}
           >
-            <table className="min-w-full border-collapse">
-              <thead className="sticky top-0 z-20">
-                <tr className="bg-gray-50">
+             <table className="min-w-full border-collapse">
+               <thead className="sticky top-0 z-20">
+                 <tr className="bg-gray-50">
                   <th
                     className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-30"
                     style={{ minWidth: "64px", maxWidth: "64px" }}
                   ></th>
-                  {Array.from({ length: 40 }, (_, i) => {
-                    const columnName = getColumnName(i + 1);
-                    const hasFilter = activeFilters[columnName];
-                    const hasColumnFilter = columnFilters[columnName];
-                    const columnWidth = getColumnWidth(columnName);
-
-                    return (
-                      <th
-                        key={i}
-                        className="border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100 group"
-                        style={{
-                          minWidth: `${columnWidth}px`,
+                   {Array.from({ length: 40 }, (_, i) => {
+                     const columnName = getColumnName(i + 1);
+                     const hasFilter = activeFilters[columnName];
+                     const hasColumnFilter = columnFilters[columnName];
+                     const columnWidth = getColumnWidth(columnName);
+                     
+                     return (
+                       <th
+                         key={i}
+                         className="border border-gray-300 bg-gray-50 text-xs font-medium text-center text-gray-700 relative hover:bg-gray-100 group"
+                         style={{ 
+                           minWidth: `${columnWidth}px`,
                           width: `${columnWidth}px`,
-                        }}
-                      >
-                        <div className="flex items-center justify-between h-full px-1">
-                          <div className="flex items-center justify-center flex-1">
-                            {columnName}
-                            {hasFilter && (
+                         }}
+                       >
+                         <div className="flex items-center justify-between h-full px-1">
+                           <div className="flex items-center justify-center flex-1">
+                           {columnName}
+                           {hasFilter && (
                               <Filter
                                 size={12}
                                 className="ml-1 text-blue-600"
                               />
-                            )}
-                            {hasColumnFilter && (
-                              <div className="ml-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-                            )}
-                          </div>
-
-                          {/* Filter button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
+                           )}
+                             {hasColumnFilter && (
+                               <div className="ml-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                           )}
+                         </div>
+                           
+                           {/* Filter button */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
                               setShowFilterDropdown(
                                 showFilterDropdown === columnName
                                   ? null
@@ -3337,8 +3425,8 @@ const GoogleSheetsClone = () => {
                             className={`opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded p-1 transition-opacity ${
                               hasColumnFilter ? "opacity-100" : ""
                             }`}
-                            title="Filter"
-                          >
+                             title="Filter"
+                           >
                             <Filter
                               size={12}
                               className={
@@ -3347,35 +3435,35 @@ const GoogleSheetsClone = () => {
                                   : "text-gray-600"
                               }
                             />
-                          </button>
-
-                          {/* Resize handle */}
-                          <div
+                           </button>
+                           
+                           {/* Resize handle */}
+                           <div
                             className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
+                             onMouseDown={(e) => {
+                               e.preventDefault();
                               e.stopPropagation();
                               startResize("column", columnName, e);
-                            }}
-                          />
-                        </div>
-
+                             }}
+                           />
+                         </div>
+                         
                         {/* Enhanced Filter dropdown */}
-                        {showFilterDropdown === columnName && (
+                         {showFilterDropdown === columnName && (
                           <div className="absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
-                            <div className="p-3">
+                             <div className="p-3">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-medium text-sm">
                                   Filter by {columnName}
                                 </h4>
-                                <button
-                                  onClick={() => setShowFilterDropdown(null)}
-                                  className="text-gray-400 hover:text-gray-600"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-
+                                 <button
+                                   onClick={() => setShowFilterDropdown(null)}
+                                   className="text-gray-400 hover:text-gray-600"
+                                 >
+                                   <X size={14} />
+                                 </button>
+                               </div>
+                               
                               {/* Filter Type Selection */}
                               <div className="mb-3">
                                 <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -3420,8 +3508,8 @@ const GoogleSheetsClone = () => {
                                   </option>
                                   <option value="is_one_of">Is one of</option>
                                 </select>
-                              </div>
-
+                                 </div>
+                                 
                               {/* Filter Value Input (for text/number filters) */}
                               {![
                                 "is_empty",
@@ -3469,20 +3557,20 @@ const GoogleSheetsClone = () => {
                                           key={index}
                                           className="flex items-center space-x-2 text-sm mb-1"
                                         >
-                                          <input
-                                            type="checkbox"
+                                     <input
+                                       type="checkbox"
                                             checked={
                                               columnFilters[
                                                 columnName
                                               ]?.values?.includes(value) ||
                                               false
                                             }
-                                            onChange={(e) => {
+                                       onChange={(e) => {
                                               const currentValues =
                                                 columnFilters[columnName]
                                                   ?.values || [];
-                                              const newValues = e.target.checked
-                                                ? [...currentValues, value]
+                                         const newValues = e.target.checked
+                                           ? [...currentValues, value]
                                                 : currentValues.filter(
                                                     (v) => v !== value
                                                   );
@@ -3492,19 +3580,19 @@ const GoogleSheetsClone = () => {
                                                 "",
                                                 newValues
                                               );
-                                            }}
-                                            className="rounded"
-                                          />
+                                       }}
+                                       className="rounded"
+                                     />
                                           <span className="truncate">
                                             {value || "(empty)"}
                                           </span>
-                                        </label>
+                                   </label>
                                       )
                                     )}
                                   </div>
                                   <div className="flex gap-2 mt-2">
-                                    <button
-                                      onClick={() => {
+                                   <button
+                                     onClick={() => {
                                         const allValues =
                                           getColumnFilterOptions(columnName);
                                         applyColumnFilter(
@@ -3513,12 +3601,12 @@ const GoogleSheetsClone = () => {
                                           "",
                                           allValues
                                         );
-                                      }}
-                                      className="text-xs text-blue-600 hover:text-blue-800"
-                                    >
-                                      Select all
-                                    </button>
-                                    <button
+                                     }}
+                                     className="text-xs text-blue-600 hover:text-blue-800"
+                                   >
+                                     Select all
+                                   </button>
+                                   <button
                                       onClick={() =>
                                         applyColumnFilter(
                                           columnName,
@@ -3528,10 +3616,10 @@ const GoogleSheetsClone = () => {
                                         )
                                       }
                                       className="text-xs text-blue-600 hover:text-blue-800"
-                                    >
-                                      Clear all
-                                    </button>
-                                  </div>
+                                   >
+                                     Clear all
+                                   </button>
+                                 </div>
                                 </div>
                               )}
 
@@ -3561,21 +3649,21 @@ const GoogleSheetsClone = () => {
                                 >
                                   Clear
                                 </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 100 }, (_, rowIndex) => {
-                  // Apply row filtering
-                  if (!isRowVisible(rowIndex)) return null;
+                               </div>
+                             </div>
+                           </div>
+                         )}
+                       </th>
+                     );
+                   })}
+                 </tr>
+               </thead>
+               <tbody>
+                 {Array.from({ length: 100 }, (_, rowIndex) => {
+                   // Apply row filtering
+                   if (!isRowVisible(rowIndex)) return null;
 
-                  return (
+                   return (
                     <tr
                       key={rowIndex}
                       style={{ height: `${getRowHeight(rowIndex + 1)}px` }}
@@ -3584,20 +3672,20 @@ const GoogleSheetsClone = () => {
                         className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10 group"
                         style={{ minWidth: "64px", maxWidth: "64px" }}
                       >
-                        <div className="flex items-center justify-center h-full">
-                          {rowIndex + 1}
-                        </div>
-
-                        {/* Row resize handle */}
-                        <div
+                         <div className="flex items-center justify-center h-full">
+                         {rowIndex + 1}
+                         </div>
+                         
+                         {/* Row resize handle */}
+                         <div
                           className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
+                           onMouseDown={(e) => {
+                             e.preventDefault();
                             e.stopPropagation();
                             startResize("row", rowIndex + 1, e);
-                          }}
-                        />
-                      </td>
+                           }}
+                         />
+                       </td>
                       {Array.from({ length: 40 }, (_, colIndex) => {
                         const cellId =
                           getColumnName(colIndex + 1) + (rowIndex + 1);
@@ -3684,7 +3772,7 @@ const GoogleSheetsClone = () => {
                                   if (isNavigatingRef.current) {
                                     return;
                                   }
-
+                                  
                                   // Check if focus is moving to another cell input
                                   const relatedTarget = e.relatedTarget;
                                   const isMovingToAnotherCell =
@@ -3693,7 +3781,7 @@ const GoogleSheetsClone = () => {
                                     relatedTarget.className.includes(
                                       "border-none"
                                     );
-
+                                  
                                   if (!isMovingToAnotherCell) {
                                     // Save immediately without delay to prevent focus issues
                                     updateCellLocal(
@@ -3728,7 +3816,7 @@ const GoogleSheetsClone = () => {
             </table>
           </div>
         </div>
-
+        
         {/* Sheet Tabs - Fixed at bottom */}
         <div className="bg-gray-50 border-t px-4 py-2 w-full z-50 fixed bottom-0 right-0">
           <div className="flex items-center space-x-2">
