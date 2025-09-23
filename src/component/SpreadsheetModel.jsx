@@ -1306,32 +1306,12 @@ const GoogleSheetsClone = () => {
             event.preventDefault();
             handleItalic();
             break;
-          case "=":
-          case "+":
-            event.preventDefault();
-            handleZoomIn();
-            break;
-          case "-":
-            event.preventDefault();
-            handleZoomOut();
-            break;
-          case "0":
-            event.preventDefault();
-            handleZoomToFit();
-            break;
+          // Removed zoom keyboard handlers to allow browser native zoom
         }
       }
 
-      // Plus/Minus keys for zoom (only with Ctrl/Cmd)
-      if (event.ctrlKey || event.metaKey) {
-        if (event.key === "+" || event.key === "=") {
-          event.preventDefault();
-          handleZoomIn();
-        } else if (event.key === "-") {
-          event.preventDefault();
-          handleZoomOut();
-        }
-      }
+      // Allow browser native zoom (Cmd+/Cmd- and Ctrl+/Ctrl-)
+      // Removed custom zoom handling to let browser handle zoom shortcuts
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -2008,9 +1988,14 @@ const GoogleSheetsClone = () => {
 
   // Handle keyboard input when cell is selected but not editing
   const handleKeyPress = (e) => {
-    // Don't interfere with copy/paste shortcuts
+    // Don't interfere with copy/paste shortcuts or zoom shortcuts
     if (e.ctrlKey || e.metaKey) {
       return; // Let the handleKeyDown function handle these
+    }
+    
+    // Don't interfere with zoom shortcuts (Cmd+/Cmd-)
+    if ((e.key === "+" || e.key === "-" || e.key === "=") && (e.ctrlKey || e.metaKey)) {
+      return; // Allow browser native zoom
     }
 
     // Only handle printable characters, not special keys
