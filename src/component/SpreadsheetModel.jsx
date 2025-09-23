@@ -2221,32 +2221,37 @@ const GoogleSheetsClone = () => {
       tabIndex={0}
     >
       {/* Strix Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200 shadow-sm">
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-4 py-1 bg-white border-b border-gray-200">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Strix Sheets
-            </h1>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-white">
+          <div className="flex items-center space-x-4 sm:space-x-6">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">S</span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
+                Strix Sheets
+              </h1>
+            </div>
             
             {/* Save Status Indicator */}
             <div className="flex items-center space-x-2">
               {isSaving ? (
-                <div className="flex items-center space-x-1 text-sm text-blue-600">
+                <div className="flex items-center space-x-2 text-sm text-blue-600">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                   <span>Saving...</span>
                 </div>
               ) : hasUnsavedChanges ? (
-                <div className="flex items-center space-x-1 text-sm text-orange-600">
+                <div className="flex items-center space-x-2 text-sm text-orange-600">
                   <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
                   <span>Unsaved changes</span>
                 </div>
               ) : (
-                <div className="flex items-center space-x-1 text-sm text-green-600">
+                <div className="flex items-center space-x-2 text-sm text-green-600">
                   <div className="w-2 h-2 bg-green-600 rounded-full"></div>
                   <span>Saved</span>
                   {lastSavedTime && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 ml-1">
                       ({lastSavedTime.toLocaleTimeString()})
                     </span>
                   )}
@@ -2255,35 +2260,102 @@ const GoogleSheetsClone = () => {
             </div>
           </div>
 
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 flex items-center space-x-2"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {/* Right side actions */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Action buttons */}
+            <div className="hidden sm:flex items-center space-x-2">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <BarChart size={16} />
+                <span>Dashboard</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/spreadsheet-dashboard')}
+                className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                <FileSpreadsheet size={16} />
+                <span>My Sheets</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/create-chart')}
+                className="flex items-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+              >
+                <BarChart size={16} />
+                <span>Create Chart</span>
+              </button>
+              
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center space-x-2 px-3 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+                <span>Import CSV</span>
+              </button>
+            </div>
+            
+            {/* Mobile action buttons */}
+            <div className="flex sm:hidden items-center space-x-1">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                title="Dashboard"
+              >
+                <BarChart size={16} />
+              </button>
+              
+              <button
+                onClick={() => navigate('/spreadsheet-dashboard')}
+                className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                title="My Sheets"
+              >
+                <FileSpreadsheet size={16} />
+              </button>
+              
+              <button
+                onClick={() => navigate('/create-chart')}
+                className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                title="Create Chart"
+              >
+                <BarChart size={16} />
+              </button>
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            <span>Logout</span>
-          </button>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
         </div>
 
         {/* Menu Bar */}
-        <div className="flex items-center px-4 py-1 bg-white border-b border-gray-200 relative">
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center px-4 sm:px-6 py-2 bg-gray-50 border-b border-gray-200 relative overflow-x-auto">
+          <div className="flex items-center space-x-1 min-w-max">
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("file")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showFileMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2292,7 +2364,7 @@ const GoogleSheetsClone = () => {
               File
             </button>
               {showFileMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '20px' }}>
                   <button
                     onClick={handleNewSpreadsheet}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2318,7 +2390,7 @@ const GoogleSheetsClone = () => {
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("edit")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showEditMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2327,7 +2399,7 @@ const GoogleSheetsClone = () => {
               Edit
             </button>
               {showEditMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '80px' }}>
                   <button
                     onClick={handleUndo}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2366,7 +2438,7 @@ const GoogleSheetsClone = () => {
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("view")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showViewMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2375,7 +2447,7 @@ const GoogleSheetsClone = () => {
               View
             </button>
               {showViewMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '140px' }}>
                   <button
                     onClick={() => {
                       handleZoomIn();
@@ -2414,7 +2486,7 @@ const GoogleSheetsClone = () => {
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("insert")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showInsertMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2423,7 +2495,7 @@ const GoogleSheetsClone = () => {
               Insert
             </button>
               {showInsertMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '200px' }}>
                   <button
                     onClick={handleInsertRow}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2446,7 +2518,7 @@ const GoogleSheetsClone = () => {
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("format")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showFormatMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2455,7 +2527,7 @@ const GoogleSheetsClone = () => {
               Format
             </button>
               {showFormatMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '260px' }}>
                   <button
                     onClick={handleBold}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2481,7 +2553,7 @@ const GoogleSheetsClone = () => {
             <div className="relative">
               <button 
                 onClick={() => handleMenuClick("data")}
-                className={`text-md px-2 py-1 rounded ${
+                className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showDataMenu
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -2490,7 +2562,7 @@ const GoogleSheetsClone = () => {
               Data
             </button>
               {showDataMenu && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '320px' }}>
                   <button
                     onClick={handleSortAscending}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2513,13 +2585,13 @@ const GoogleSheetsClone = () => {
               )}
             </div>
             
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
+            <button className="text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium transition-colors">
               Tools
             </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
+            <button className="text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium transition-colors">
               Extensions
             </button>
-            <button className="text-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded">
+            <button className="text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium transition-colors">
               Help
             </button>
           </div>
@@ -2527,20 +2599,22 @@ const GoogleSheetsClone = () => {
       </div>
 
       {/* Google Sheets Style Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shadow-sm">
+        <div className="flex items-center justify-between overflow-x-auto">
           {/* Left side toolbar */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2 min-w-max">
             {/* Undo/Redo */}
             <button
               onClick={handleUndo}
-              className="p-2 hover:bg-gray-100 rounded"
+              className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+              title="Undo (Ctrl+Z)"
             >
               <Undo size={16} className="text-gray-600" />
             </button>
             <button
               onClick={handleRedo}
-              className="p-2 hover:bg-gray-100 rounded"
+              className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+              title="Redo (Ctrl+Y)"
             >
               <Redo size={16} className="text-gray-600" />
             </button>
@@ -2548,10 +2622,10 @@ const GoogleSheetsClone = () => {
             {/* Save Button */}
             <button 
               onClick={handleSaveSpreadsheet} 
-              className={`p-2 hover:bg-gray-100 rounded ${hasUnsavedChanges ? 'bg-blue-50' : ''}`}
+              className={`p-2 hover:bg-gray-100 rounded-md transition-colors ${hasUnsavedChanges ? 'bg-blue-50 text-blue-600' : ''}`}
               title="Save (Ctrl+S)"
             >
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
             </button>
@@ -2560,37 +2634,37 @@ const GoogleSheetsClone = () => {
             <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
             {/* Zoom Controls */}
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 bg-gray-50 rounded-lg p-1">
               <button
                 onClick={handleZoomOut}
-                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                className="p-1.5 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
                 title="Zoom Out"
               >
                 <svg
                   className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M20 12H4"
                   />
-              </svg>
-            </button>
+                </svg>
+              </button>
 
               <div className="relative">
                 <button
                   onClick={() => setShowZoomDropdown(!showZoomDropdown)}
-                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-12"
+                  className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 rounded-md min-w-16 font-medium transition-colors"
                 >
                   {zoomLevel}%
                 </button>
 
                 {showZoomDropdown && (
-                  <div className="zoom-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-32">
+                  <div className="zoom-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-32" style={{ top: '180px', left: '20px' }}>
                     {zoomLevels.map((level) => (
                       <button
                         key={level}
@@ -2608,7 +2682,7 @@ const GoogleSheetsClone = () => {
 
               <button
                 onClick={handleZoomIn}
-                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                className="p-1.5 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
                 title="Zoom In"
               >
                 <svg
@@ -2625,9 +2699,10 @@ const GoogleSheetsClone = () => {
                   />
                 </svg>
               </button>
-
-              <div className="w-px h-4 bg-gray-300"></div>
             </div>
+
+            {/* Separator */}
+            <div className="w-px h-6 bg-gray-300 mx-2"></div>
 
             {/* Number Format Dropdown */}
             <div className="relative">
@@ -2637,14 +2712,14 @@ const GoogleSheetsClone = () => {
                   e.stopPropagation();
                   setShowNumberFormatDropdown(!showNumberFormatDropdown);
                 }}
-                className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded min-w-16 text-left"
+                className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md min-w-20 text-left font-medium transition-colors"
               >
                 {numberFormats.find((f) => f.value === getCurrentNumberFormat())
                   ?.label || "123"}
               </button>
 
               {showNumberFormatDropdown && (
-                <div className="number-format-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
+                <div className="number-format-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '180px', left: '200px' }}>
                   <div className="p-2">
                     <div className="text-xs font-medium text-gray-500 mb-2 px-2">
                       General
@@ -2853,7 +2928,7 @@ const GoogleSheetsClone = () => {
               </button>
 
                 {showFontDropdown && (
-                  <div className="font-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+                  <div className="font-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48 max-h-64 overflow-y-auto" style={{ top: '180px', left: '400px' }}>
                     {fontFamilies.map((font) => (
                       <button
                         key={font}
@@ -2890,7 +2965,7 @@ const GoogleSheetsClone = () => {
                   </button>
 
                 {showFontSizeDropdown && (
-                  <div className="font-size-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-16 max-h-48 overflow-y-auto">
+                  <div className="font-size-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-16 max-h-48 overflow-y-auto" style={{ top: '180px', left: '500px' }}>
                     {fontSizes.map((size) => (
                       <button
                         key={size}
@@ -3001,7 +3076,7 @@ const GoogleSheetsClone = () => {
             </button>
 
               {showTextRotationDropdown && (
-                <div className="text-rotation-dropdown absolute top-full left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-48">
+                <div className="text-rotation-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '180px', left: '600px' }}>
                   <div className="p-2">
                     <div className="text-xs font-medium text-gray-500 mb-2 px-2">
                       Text Rotation
@@ -3031,7 +3106,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {showFormulaMenu && (
-              <div className="absolute top-full left-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div className="fixed w-80 bg-white border rounded-lg shadow-lg z-[9999] max-h-96 overflow-y-auto" style={{ top: '180px', left: '700px' }}>
                 <div className="p-2 border-b">
                   <input
                     type="text"
@@ -3100,7 +3175,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {showFunctionMenu && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50">
+              <div className="fixed w-48 bg-white border rounded-lg shadow-lg z-[9999]" style={{ top: '180px', left: '900px' }}>
                 <div className="py-1">
                             <button
                     onClick={() => {
@@ -3136,7 +3211,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {showColorPicker && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50 p-3">
+              <div className="fixed w-48 bg-white border rounded-lg shadow-lg z-[9999] p-3" style={{ top: '180px', left: '1000px' }}>
                 <div className="grid grid-cols-6 gap-2 mb-3">
                   {[
                     "#000000",
@@ -3223,7 +3298,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {filterMenuOpen && (
-              <div className="filter-menu absolute top-full right-0 mt-1 w-80 bg-white border rounded-lg shadow-lg z-50 p-4">
+              <div className="filter-menu fixed w-80 bg-white border rounded-lg shadow-lg z-[9999] p-4" style={{ top: '180px', right: '20px' }}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-800">
                     Create a filter
@@ -3325,64 +3400,20 @@ const GoogleSheetsClone = () => {
               </div>
             </div>
           </div>
-
-           {/* Right side - Action buttons */}
-           <div className="flex items-center space-x-2">
-             <button 
-              onClick={() => navigate("/dashboard")}
-               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
-             >
-               <BarChart size={14} />
-               <span>Dashboard</span>
-             </button>
-             <button 
-              onClick={() => navigate("/spreadsheet-dashboard")}
-               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 flex items-center space-x-1"
-             >
-               <FileSpreadsheet size={14} />
-               <span>My Sheets</span>
-             </button>
-            <button 
-              onClick={() => navigate("/create-chart")}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 flex items-center space-x-1"
-            >
-              <BarChart size={14} />
-              <span>Create Chart</span>
-            </button>
-            <button
-              onClick={handleImportCSV}
-              className="px-3 py-1 bg-white text-gray-700 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 flex items-center space-x-1"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-              <span>Import CSV</span>
-            </button>
-          </div>
         </div>
       </div>
 
       {/* Google Sheets Style Formula Bar */}
-      <div className="bg-white border-b border-gray-300 flex-shrink-0">
-        <div className="flex items-center h-10">
+      <div className="bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
+        <div className="flex items-center h-12 px-4 sm:px-6">
           {/* Cell reference */}
-          <div className="flex items-center border-r border-gray-300 bg-gray-50">
-            <span className="text-sm font-medium text-gray-700 px-3 py-2 min-w-16 text-center border-r border-gray-300">
+          <div className="flex items-center border border-gray-300 bg-gray-50 rounded-l-md">
+            <span className="text-sm font-medium text-gray-700 px-4 py-2 min-w-20 text-center border-r border-gray-300">
               {selectedCell}
             </span>
             <button
               onClick={() => setShowFormulaHelper(!showFormulaHelper)}
-              className="p-2 hover:bg-gray-200 text-gray-600 border-r border-gray-300"
+              className="p-2 hover:bg-gray-200 text-gray-600 border-r border-gray-300 transition-colors"
               title="Functions"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -3394,7 +3425,7 @@ const GoogleSheetsClone = () => {
           {/* Formula input area */}
           <div className="flex-1 flex items-center">
             <div 
-              className="flex-1 flex items-center border-l border-gray-300 bg-white cursor-text h-full"
+              className="flex-1 flex items-center border border-gray-300 border-l-0 bg-white cursor-text h-full rounded-r-md"
               onClick={() => {
                 setTimeout(() => {
                   if (formulaBarInputRef.current) {
@@ -3442,7 +3473,7 @@ const GoogleSheetsClone = () => {
                     }, 150);
                   }}
                 onMouseUp={(e) => e.stopPropagation()}
-                className="flex-1 px-3 py-2 focus:outline-none text-sm h-full border-none"
+                className="flex-1 px-4 py-2 focus:outline-none text-sm h-full border-none placeholder-gray-500"
                   placeholder="Enter value or formula (start with =)"
                   autoComplete="off"
                 />
@@ -3466,10 +3497,10 @@ const GoogleSheetsClone = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-gray-50">
         {/* Resize Indicator */}
         {showResizeIndicator && isResizing && (
-          <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded shadow-lg z-50 text-sm">
+          <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-lg shadow-lg z-[9999] text-sm font-medium">
             {resizeType === "column"
               ? `Width: ${Math.round(getColumnWidth(resizeTarget))}px`
               : `Height: ${Math.round(getRowHeight(resizeTarget))}px`}
@@ -3478,7 +3509,7 @@ const GoogleSheetsClone = () => {
         
         {/* Google Sheets Style Spreadsheet */}
         <div
-          className="flex-1 overflow-auto bg-white mb-12"
+          className="flex-1 overflow-auto bg-white shadow-inner mb-10"
           style={{ maxHeight: "calc(100vh - 200px)" }}
         >
           <div
@@ -3491,10 +3522,10 @@ const GoogleSheetsClone = () => {
             }}
           >
              <table className="min-w-full border-collapse">
-               <thead className="sticky top-0 z-20">
+               <thead className="sticky top-0 z-10">
                  <tr className="bg-gray-50">
                   <th
-                    className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-30"
+                    className="w-16 h-8 border border-gray-300 bg-gray-100 text-xs font-medium text-gray-600 sticky left-0 z-10"
                     style={{ minWidth: "64px", maxWidth: "64px" }}
                   ></th>
                    {Array.from({ length: 40 }, (_, i) => {
@@ -3553,7 +3584,7 @@ const GoogleSheetsClone = () => {
                            
                            {/* Resize handle */}
                            <div
-                            className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
+                            className="absolute right-0 top-0 w-2 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-10 border-l border-gray-300 bg-gray-200 hover:bg-blue-500"
                              onMouseDown={(e) => {
                                e.preventDefault();
                               e.stopPropagation();
@@ -3564,7 +3595,7 @@ const GoogleSheetsClone = () => {
                          
                         {/* Enhanced Filter dropdown */}
                          {showFilterDropdown === columnName && (
-                          <div className="filter-dropdown-container absolute top-full left-0 bg-white border border-gray-300 rounded shadow-lg z-50 min-w-64 max-h-80 overflow-y-auto">
+                          <div className="filter-dropdown-container fixed bg-white border border-gray-300 rounded shadow-lg z-[9999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '250px', left: '20px' }}>
                              <div className="p-3">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-medium text-sm">
@@ -3783,7 +3814,7 @@ const GoogleSheetsClone = () => {
                       style={{ height: `${getRowHeight(rowIndex + 1)}px` }}
                     >
                       <td
-                        className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-10 group"
+                        className="w-16 border border-gray-300 bg-gray-100 text-xs text-center font-medium sticky left-0 z-5 group"
                         style={{ minWidth: "64px", maxWidth: "64px" }}
                       >
                          <div className="flex items-center justify-center h-full">
@@ -3792,7 +3823,7 @@ const GoogleSheetsClone = () => {
                          
                          {/* Row resize handle */}
                          <div
-                          className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-20 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
+                          className="absolute bottom-0 left-0 w-full h-2 cursor-row-resize opacity-0 group-hover:opacity-100 transition-opacity z-10 border-t border-gray-300 bg-gray-200 hover:bg-blue-500"
                            onMouseDown={(e) => {
                              e.preventDefault();
                             e.stopPropagation();
@@ -3932,16 +3963,16 @@ const GoogleSheetsClone = () => {
         </div>
         
         {/* Sheet Tabs - Fixed at bottom */}
-        <div className="bg-gray-50 border-t px-4 py-2 w-full z-50 fixed bottom-0 right-0">
-          <div className="flex items-center space-x-2">
+        <div className="bg-gray-100 border-t border-gray-200 px-4 sm:px-6 py-1 w-full z-[9999] fixed bottom-0 right-0 shadow-lg">
+          <div className="flex items-center space-x-1 overflow-x-auto">
             {sheets.map((sheet) => (
               <button
                 key={sheet.id}
                 onClick={() => setActiveSheetId(sheet.id)}
-                className={`px-3 py-1 text-sm rounded ${
+                className={`px-4 py-1 text-sm rounded-lg font-medium transition-colors ${
                   activeSheetId === sheet.id
-                    ? "bg-white border border-gray-300"
-                    : "hover:bg-gray-200"
+                    ? "bg-white border border-gray-300 shadow-sm text-gray-900"
+                    : "hover:bg-gray-200 text-gray-600"
                 }`}
               >
                 {sheet.name}
@@ -3949,7 +3980,8 @@ const GoogleSheetsClone = () => {
             ))}
             <button
               onClick={addSheet}
-              className="p-1 hover:bg-gray-200 rounded"
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600"
+              title="Add new sheet"
             >
               <Plus size={16} />
             </button>
@@ -3959,7 +3991,7 @@ const GoogleSheetsClone = () => {
 
       {/* Chart Modal */}
       {showChartModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 w-3/4 h-3/4 max-w-4xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Chart Visualization</h2>
@@ -3993,7 +4025,7 @@ const GoogleSheetsClone = () => {
 
       {/* Function Prompt Modal */}
       {showFormulaPrompt && selectedFunction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
@@ -4039,7 +4071,7 @@ const GoogleSheetsClone = () => {
 
       {/* Link Modal */}
       {showLinkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Insert Link</h2>
