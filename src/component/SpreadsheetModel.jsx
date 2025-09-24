@@ -227,7 +227,7 @@ const GoogleSheetsClone = () => {
         ? Object.fromEntries(activeSheet.data)
         : activeSheet.data
       : {};
-  }, [activeSheet, formatUpdateTrigger]);
+  }, [activeSheet, sheets]);
 
   // Debug logging (minimal)
   // console.log('Active sheet:', activeSheet);
@@ -251,17 +251,16 @@ const GoogleSheetsClone = () => {
         const cellId = getColumnName(col) + row;
         const cellData = data[cellId];
 
-        // Debug logging for specific cells
-        if (cellId === "A1") {
+        // Debug logging for specific cells (only when needed)
+        if (cellId === "A1" && cellData && cellData.formula && cellData.value === 0) {
           console.log(`MemoizedCellData for ${cellId}:`, cellData);
-          console.log(`Data[${cellId}]:`, data[cellId]);
         }
 
         result[cellId] = cellData || { value: "", formula: "", style: {} };
       }
     }
     return result;
-  }, [data, visibleRows, scrollTop]);
+  }, [data, visibleRows, scrollTop, sheets]);
 
   // Enhanced filter functions for Google Sheets-like behavior
   const applyColumnFilter = useCallback(
@@ -298,7 +297,7 @@ const GoogleSheetsClone = () => {
         const colNum = getColumnNumber(column);
         const cellId = getColumnName(colNum) + (rowIndex + 1);
         const cellData = data[cellId];
-        const cellValue = cellData ? (cellData.value || "").toString() : "";
+        const cellValue = cellData ? (cellData.value ?? "").toString() : "";
 
         let isVisible = false;
 
@@ -1151,7 +1150,7 @@ const GoogleSheetsClone = () => {
       for (let col = 1; col <= 26; col++) {
         const cellId = getColumnName(col) + row;
         const cellData = data[cellId];
-        const value = cellData ? cellData.value || "" : "";
+        const value = cellData ? cellData.value ?? "" : "";
         rowData.push(`"${value}"`);
       }
       rows.push(rowData.join(","));
@@ -1366,11 +1365,26 @@ const GoogleSheetsClone = () => {
   // Enhanced spreadsheet functions with comprehensive banking formulas
   const functions = {
     // Math functions
-    SUM: (range) => {
+    SUM: (...args) => {
       try {
-        console.log("SUM function called with range:", range);
-        const values = getRangeValues(range);
-        console.log("Range values:", values);
+        console.log("SUM function called with args:", args);
+        let values = [];
+        
+        // Handle both ranges and direct numbers
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            // It's a range like "A1:A5"
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number') {
+            // It's a direct number
+            values.push(arg);
+          } else if (typeof arg === 'string' && !isNaN(parseFloat(arg))) {
+            // It's a string number like "10"
+            values.push(parseFloat(arg));
+          }
+        });
+        
+        console.log("All values to sum:", values);
         const numValues = values
           .filter((v) => !isNaN(parseFloat(v)))
           .map((v) => parseFloat(v));
@@ -1645,7 +1659,7 @@ const GoogleSheetsClone = () => {
             const cellId = getColumnName(col) + row;
             const cellData = data[cellId];
             if (cellData) {
-              values.push(cellData.value || "");
+              values.push(cellData.value ?? "");
             } else {
               values.push("");
             }
@@ -1654,7 +1668,7 @@ const GoogleSheetsClone = () => {
         return values;
       } else {
         const cellData = data[range];
-        return cellData ? [cellData.value || ""] : [""];
+        return cellData ? [cellData.value ?? ""] : [""];
       }
     } catch (e) {
       return [];
@@ -1670,11 +1684,15 @@ const GoogleSheetsClone = () => {
   };
 
   const evaluateFormula = (formula) => {
-    if (!formula || !formula.startsWith("=")) return formula;
+    if (!formula || !formula.startsWith("=")) {
+      console.log("Formula doesn't start with =, returning as-is:", formula);
+      return formula;
+    }
 
     console.log("Evaluating formula:", formula);
     try {
       let expression = formula.slice(1).trim();
+      console.log("Expression after removing =:", expression);
 
       // Replace cell references with values
       expression = expression.replace(/[A-Z]+\d+/g, (match) => {
@@ -1709,7 +1727,7 @@ const GoogleSheetsClone = () => {
             if (result === "#ERROR") return "#ERROR";
             return typeof result === "string"
               ? `"${result}"`
-              : (result || 0).toString();
+              : (result ?? 0).toString();
           } catch (error) {
             return "#ERROR";
           }
@@ -1717,9 +1735,12 @@ const GoogleSheetsClone = () => {
       });
 
       if (expression.includes("#ERROR")) {
+        console.log("Expression contains #ERROR, returning #ERROR");
         return "#ERROR";
       }
 
+      console.log("Expression after function evaluation:", expression);
+      
       // Safe evaluation for basic math
       const allowedChars = /^[0-9+\-*/().\s"]*$/;
       const cleanExpression = expression.replace(/"[^"]*"/g, '""');
@@ -1871,15 +1892,26 @@ const GoogleSheetsClone = () => {
   };
 
   const formatCellValue = (cellData) => {
+    if (!cellData) {
+      return "";
+    }
+    
+    // Always return the evaluated value for display
+    // Use nullish coalescing to handle 0 values properly
+    const value = cellData.value ?? "";
+    
+    // Debug logging for formula cells (only when needed)
+    if (cellData.formula && cellData.formula.includes("SUM") && value === 0) {
+      console.log("formatCellValue for formula cell with value 0:", cellData, "returning:", value);
+    }
+    
     if (
-      !cellData ||
       !cellData.style?.numberFormat ||
       cellData.style.numberFormat === "automatic"
     ) {
-      return cellData?.value || "";
+      return value;
     }
 
-    const value = cellData.value;
     const numberFormat = cellData.style.numberFormat;
     const decimalPlaces = cellData.style.decimalPlaces || 2;
 
@@ -1959,9 +1991,10 @@ const GoogleSheetsClone = () => {
     
     setSelectedCell(cellId);
     const cellData = data[cellId];
-    const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
-    setFormulaBarValue(cellValue);
-    setCellEditValue(cellValue);
+    // Always show the formula in the formula bar if it exists, otherwise show the value
+      const formulaBarValue = cellData ? (cellData.formula || (cellData.value ?? "")) : "";
+    setFormulaBarValue(formulaBarValue);
+    setCellEditValue(formulaBarValue);
     setIsProcessingInput(false);
     
     // Set editing state and focus immediately
@@ -1992,9 +2025,10 @@ const GoogleSheetsClone = () => {
     // Double-click selects all text for replacement
     setSelectedCell(cellId);
     const cellData = data[cellId];
-    const cellValue = cellData ? cellData.formula || cellData.value || "" : "";
-    setCellEditValue(cellValue);
-    setFormulaBarValue(cellValue);
+    // Always show the formula in the formula bar if it exists, otherwise show the value
+      const formulaBarValue = cellData ? (cellData.formula || (cellData.value ?? "")) : "";
+    setCellEditValue(formulaBarValue);
+    setFormulaBarValue(formulaBarValue);
     setIsProcessingInput(false);
     
     // Set editing state immediately
@@ -2012,7 +2046,8 @@ const GoogleSheetsClone = () => {
   const handleFormulaBarChange = (value) => {
     setFormulaBarValue(value);
     if (selectedCell) {
-      updateCellLocal(selectedCell, value);
+      // Update cell with both the value and formula
+      updateCellLocal(selectedCell, value, value);
     }
   };
 
@@ -2047,10 +2082,13 @@ const GoogleSheetsClone = () => {
       setIsEditing(true);
       const cellData = data[selectedCell];
       const existingValue = cellData
-        ? cellData.formula || cellData.value || ""
+        ? cellData.formula || (cellData.value ?? "")
         : "";
-      setCellEditValue(existingValue + e.key);
-      setFormulaBarValue(existingValue + e.key);
+      const newValue = existingValue + e.key;
+      setCellEditValue(newValue);
+      setFormulaBarValue(newValue);
+      // Also update the cell immediately
+      updateCellLocal(selectedCell, newValue, newValue);
       setTimeout(() => {
         if (cellInputRef.current) {
           cellInputRef.current.focus();
@@ -2167,12 +2205,39 @@ const GoogleSheetsClone = () => {
   };
 
   const insertFunction = (funcName) => {
+    console.log("insertFunction called with:", funcName);
+    console.log("Current formulaBarValue:", formulaBarValue);
+    console.log("Current selectedCell:", selectedCell);
+    
     const currentFormula = formulaBarValue;
     const newFormula = currentFormula.startsWith("=")
       ? `${currentFormula}${funcName}()`
       : `=${funcName}()`;
+    
+    console.log("New formula:", newFormula);
+    
     setFormulaBarValue(newFormula);
-    setShowFunctionMenu(false);
+    setShowFormulaMenu(false);
+    console.log("Formula bar value set to:", newFormula);
+    
+    // Also update the cell immediately to show the formula
+    if (selectedCell) {
+      console.log("Updating cell with formula:", newFormula);
+      updateCellLocal(selectedCell, newFormula, newFormula);
+    }
+    
+    // Focus back to formula bar for user to continue editing
+    setTimeout(() => {
+      if (formulaBarInputRef.current) {
+        formulaBarInputRef.current.focus();
+        // Position cursor before the closing parenthesis
+        const cursorPos = newFormula.length - 1;
+        formulaBarInputRef.current.setSelectionRange(cursorPos, cursorPos);
+        console.log("Formula bar focused, cursor positioned at:", cursorPos);
+      } else {
+        console.log("formulaBarInputRef.current is null");
+      }
+    }, 200);
   };
 
   const functionCategories = {
@@ -3199,7 +3264,7 @@ const GoogleSheetsClone = () => {
 
             {showFormulaMenu && createPortal(
               <div 
-                className="fixed w-80 bg-white border rounded-lg shadow-lg z-[99999] max-h-96 overflow-y-auto" 
+                className="fixed w-80 bg-white border rounded-lg shadow-lg z-[99999] max-h-96 overflow-y-auto formula-menu-container" 
                 style={{ 
                   top: `${formulaMenuPosition.top}px`, 
                   left: `${formulaMenuPosition.left}px` 
@@ -3212,6 +3277,7 @@ const GoogleSheetsClone = () => {
                     className="w-full px-2 py-1 border rounded text-sm"
                     value={formulaSearch}
                     onChange={(e) => setFormulaSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
                 <div className="max-h-80 overflow-y-auto">
@@ -3232,7 +3298,10 @@ const GoogleSheetsClone = () => {
                           .map((func) => (
                             <button
                               key={func}
-                              onClick={() => insertFunction(func)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                insertFunction(func);
+                              }}
                               className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
                             >
                               {func}
@@ -3551,7 +3620,7 @@ const GoogleSheetsClone = () => {
                   ref={formulaBarInputRef}
                   type="text"
                   value={formulaBarValue}
-                  onChange={(e) => setFormulaBarValue(e.target.value)}
+                  onChange={(e) => handleFormulaBarChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && selectedCell) {
                     console.log("Enter pressed, updating cell with:", formulaBarValue);
@@ -3945,7 +4014,7 @@ const GoogleSheetsClone = () => {
                       {Array.from({ length: 40 }, (_, colIndex) => {
                         const cellId =
                           getColumnName(colIndex + 1) + (rowIndex + 1);
-                        const cellData = data[cellId];
+                        const cellData = memoizedCellData[cellId];
                         const isSelected = selectedCell === cellId;
 
                         const columnName = getColumnName(colIndex + 1);
@@ -3984,8 +4053,11 @@ const GoogleSheetsClone = () => {
                                 type="text"
                                 value={cellEditValue}
                                 onChange={(e) => {
-                                  setCellEditValue(e.target.value);
-                                  setFormulaBarValue(e.target.value);
+                                  const newValue = e.target.value;
+                                  setCellEditValue(newValue);
+                                  setFormulaBarValue(newValue);
+                                  // Also update the cell data immediately
+                                  updateCellLocal(selectedCell, newValue, newValue);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
