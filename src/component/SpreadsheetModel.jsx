@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSpreadsheet } from "../context/SpreadsheetContext";
@@ -111,6 +112,24 @@ const GoogleSheetsClone = () => {
   const [showFunctionMenu, setShowFunctionMenu] = useState(false);
   const [showFormulaMenu, setShowFormulaMenu] = useState(false);
   const [formulaSearch, setFormulaSearch] = useState("");
+  const [formulaMenuPosition, setFormulaMenuPosition] = useState({ top: 0, left: 0 });
+  const formulaButtonRef = useRef(null);
+  const [functionMenuPosition, setFunctionMenuPosition] = useState({ top: 0, left: 0 });
+  const functionButtonRef = useRef(null);
+  
+  // Menu dropdown positions and refs
+  const [fileMenuPosition, setFileMenuPosition] = useState({ top: 0, left: 0 });
+  const fileButtonRef = useRef(null);
+  const [editMenuPosition, setEditMenuPosition] = useState({ top: 0, left: 0 });
+  const editButtonRef = useRef(null);
+  const [viewMenuPosition, setViewMenuPosition] = useState({ top: 0, left: 0 });
+  const viewButtonRef = useRef(null);
+  const [insertMenuPosition, setInsertMenuPosition] = useState({ top: 0, left: 0 });
+  const insertButtonRef = useRef(null);
+  const [formatMenuPosition, setFormatMenuPosition] = useState({ top: 0, left: 0 });
+  const formatButtonRef = useRef(null);
+  const [dataMenuPosition, setDataMenuPosition] = useState({ top: 0, left: 0 });
+  const dataButtonRef = useRef(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
@@ -600,6 +619,17 @@ const GoogleSheetsClone = () => {
         break;
     }
     setActiveMenu(menuName);
+  };
+
+  const calculateDropdownPosition = (buttonRef) => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      return {
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX
+      };
+    }
+    return { top: 0, left: 0 };
   };
 
   // File menu functions
@@ -2335,11 +2365,16 @@ const GoogleSheetsClone = () => {
         </div>
 
         {/* Menu Bar */}
-        <div className="flex items-center px-4 sm:px-6 py-2 bg-gray-50 border-b border-gray-200 relative overflow-x-auto">
+        <div className="flex items-center px-4 sm:px-6 py-2 bg-gray-50 border-b border-gray-200 relative overflow-x-auto overflow-y-visible">
           <div className="flex items-center space-x-1 min-w-max">
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("file")}
+                ref={fileButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(fileButtonRef);
+                  setFileMenuPosition(position);
+                  handleMenuClick("file");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showFileMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2348,8 +2383,14 @@ const GoogleSheetsClone = () => {
               >
               File
             </button>
-              {showFileMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '20px' }}>
+              {showFileMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${fileMenuPosition.top}px`, 
+                    left: `${fileMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={handleNewSpreadsheet}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2368,13 +2409,19 @@ const GoogleSheetsClone = () => {
                   >
                     Export as CSV
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("edit")}
+                ref={editButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(editButtonRef);
+                  setEditMenuPosition(position);
+                  handleMenuClick("edit");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showEditMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2383,8 +2430,14 @@ const GoogleSheetsClone = () => {
               >
               Edit
             </button>
-              {showEditMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '80px' }}>
+              {showEditMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${editMenuPosition.top}px`, 
+                    left: `${editMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={handleUndo}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2416,13 +2469,19 @@ const GoogleSheetsClone = () => {
                   >
                     Paste
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("view")}
+                ref={viewButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(viewButtonRef);
+                  setViewMenuPosition(position);
+                  handleMenuClick("view");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showViewMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2431,8 +2490,14 @@ const GoogleSheetsClone = () => {
               >
               View
             </button>
-              {showViewMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '140px' }}>
+              {showViewMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${viewMenuPosition.top}px`, 
+                    left: `${viewMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={() => {
                       handleZoomIn();
@@ -2464,13 +2529,19 @@ const GoogleSheetsClone = () => {
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
                     Show Grid Lines
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("insert")}
+                ref={insertButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(insertButtonRef);
+                  setInsertMenuPosition(position);
+                  handleMenuClick("insert");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showInsertMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2479,8 +2550,14 @@ const GoogleSheetsClone = () => {
               >
               Insert
             </button>
-              {showInsertMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '200px' }}>
+              {showInsertMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${insertMenuPosition.top}px`, 
+                    left: `${insertMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={handleInsertRow}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2496,13 +2573,19 @@ const GoogleSheetsClone = () => {
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
                     Insert Chart
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("format")}
+                ref={formatButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(formatButtonRef);
+                  setFormatMenuPosition(position);
+                  handleMenuClick("format");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showFormatMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2511,8 +2594,14 @@ const GoogleSheetsClone = () => {
               >
               Format
             </button>
-              {showFormatMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '260px' }}>
+              {showFormatMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${formatMenuPosition.top}px`, 
+                    left: `${formatMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={handleBold}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2531,13 +2620,19 @@ const GoogleSheetsClone = () => {
                   <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
                     Background Color
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
             <div className="relative">
               <button 
-                onClick={() => handleMenuClick("data")}
+                ref={dataButtonRef}
+                onClick={() => {
+                  const position = calculateDropdownPosition(dataButtonRef);
+                  setDataMenuPosition(position);
+                  handleMenuClick("data");
+                }}
                 className={`text-sm px-3 py-2 rounded-md font-medium transition-colors ${
                   showDataMenu
                     ? "bg-gray-200 text-gray-900"
@@ -2546,8 +2641,14 @@ const GoogleSheetsClone = () => {
               >
               Data
             </button>
-              {showDataMenu && (
-                <div className="fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '120px', left: '320px' }}>
+              {showDataMenu && createPortal(
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" 
+                  style={{ 
+                    top: `${dataMenuPosition.top}px`, 
+                    left: `${dataMenuPosition.left}px` 
+                  }}
+                >
                   <button
                     onClick={handleSortAscending}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
@@ -2566,7 +2667,8 @@ const GoogleSheetsClone = () => {
                   >
                     Filter
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             
@@ -2584,8 +2686,8 @@ const GoogleSheetsClone = () => {
       </div>
 
       {/* Google Sheets Style Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shadow-sm">
-        <div className="flex items-center justify-between overflow-x-auto">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 shadow-sm overflow-visible">
+        <div className="flex items-center justify-between overflow-x-auto overflow-y-visible">
           {/* Left side toolbar */}
           <div className="flex items-center space-x-2 min-w-max">
             {/* Undo/Redo */}
@@ -2649,7 +2751,7 @@ const GoogleSheetsClone = () => {
                 </button>
 
                 {showZoomDropdown && (
-                  <div className="zoom-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-32" style={{ top: '180px', left: '20px' }}>
+                  <div className="zoom-dropdown absolute bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-32" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                     {zoomLevels.map((level) => (
                       <button
                         key={level}
@@ -2704,7 +2806,7 @@ const GoogleSheetsClone = () => {
               </button>
 
               {showNumberFormatDropdown && (
-                <div className="number-format-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '180px', left: '200px' }}>
+                <div className="number-format-dropdown absolute bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                   <div className="p-2">
                     <div className="text-xs font-medium text-gray-500 mb-2 px-2">
                       General
@@ -2913,7 +3015,7 @@ const GoogleSheetsClone = () => {
               </button>
 
                 {showFontDropdown && (
-                  <div className="font-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48 max-h-64 overflow-y-auto" style={{ top: '180px', left: '400px' }}>
+                  <div className="font-dropdown absolute bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48 max-h-64 overflow-y-auto" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                     {fontFamilies.map((font) => (
                       <button
                         key={font}
@@ -2950,7 +3052,7 @@ const GoogleSheetsClone = () => {
                   </button>
 
                 {showFontSizeDropdown && (
-                  <div className="font-size-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-16 max-h-48 overflow-y-auto" style={{ top: '180px', left: '500px' }}>
+                  <div className="font-size-dropdown absolute bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-16 max-h-48 overflow-y-auto" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                     {fontSizes.map((size) => (
                       <button
                         key={size}
@@ -3061,7 +3163,7 @@ const GoogleSheetsClone = () => {
             </button>
 
               {showTextRotationDropdown && (
-                <div className="text-rotation-dropdown fixed bg-white border border-gray-200 rounded shadow-lg z-[9999] min-w-48" style={{ top: '180px', left: '600px' }}>
+                <div className="text-rotation-dropdown absolute bg-white border border-gray-200 rounded shadow-lg z-[99999] min-w-48" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                   <div className="p-2">
                     <div className="text-xs font-medium text-gray-500 mb-2 px-2">
                       Text Rotation
@@ -3083,15 +3185,26 @@ const GoogleSheetsClone = () => {
           {/* Formula Icon (Σ) */}
           <div className="relative formula-menu-container">
             <button
-              onClick={() => setShowFormulaMenu(!showFormulaMenu)}
+              ref={formulaButtonRef}
+              onClick={() => {
+                const position = calculateDropdownPosition(formulaButtonRef);
+                setFormulaMenuPosition(position);
+                setShowFormulaMenu(!showFormulaMenu);
+              }}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
               title="Functions"
             >
               <span className="text-lg font-bold">Σ</span>
             </button>
 
-            {showFormulaMenu && (
-              <div className="fixed w-80 bg-white border rounded-lg shadow-lg z-[9999] max-h-96 overflow-y-auto" style={{ top: '180px', left: '700px' }}>
+            {showFormulaMenu && createPortal(
+              <div 
+                className="fixed w-80 bg-white border rounded-lg shadow-lg z-[99999] max-h-96 overflow-y-auto" 
+                style={{ 
+                  top: `${formulaMenuPosition.top}px`, 
+                  left: `${formulaMenuPosition.left}px` 
+                }}
+              >
                 <div className="p-2 border-b">
                   <input
                     type="text"
@@ -3129,7 +3242,8 @@ const GoogleSheetsClone = () => {
                     )
                   )}
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
 
@@ -3152,15 +3266,26 @@ const GoogleSheetsClone = () => {
             <div className="flex flex-wrap items-start space-x-2 justify-start">
               <div className="relative function-menu-container">
             <button
-              onClick={() => setShowFunctionMenu(!showFunctionMenu)}
+              ref={functionButtonRef}
+              onClick={() => {
+                const position = calculateDropdownPosition(functionButtonRef);
+                setFunctionMenuPosition(position);
+                setShowFunctionMenu(!showFunctionMenu);
+              }}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
             >
               <Calculator size={16} />
               <ChevronDown size={12} className="ml-1" />
             </button>
 
-            {showFunctionMenu && (
-              <div className="fixed w-48 bg-white border rounded-lg shadow-lg z-[9999]" style={{ top: '180px', left: '900px' }}>
+            {showFunctionMenu && createPortal(
+              <div 
+                className="fixed w-48 bg-white border rounded-lg shadow-lg z-[99999]" 
+                style={{ 
+                  top: `${functionMenuPosition.top}px`, 
+                  left: `${functionMenuPosition.left}px` 
+                }}
+              >
                 <div className="py-1">
                             <button
                     onClick={() => {
@@ -3184,7 +3309,8 @@ const GoogleSheetsClone = () => {
                     Create filter view
                   </button>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
               <div className="relative color-picker-container">
@@ -3196,7 +3322,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {showColorPicker && (
-              <div className="fixed w-48 bg-white border rounded-lg shadow-lg z-[9999] p-3" style={{ top: '180px', left: '1000px' }}>
+              <div className="absolute w-48 bg-white border rounded-lg shadow-lg z-[99999] p-3" style={{ top: '100%', left: '0', marginTop: '4px' }}>
                 <div className="grid grid-cols-6 gap-2 mb-3">
                   {[
                     "#000000",
@@ -3283,7 +3409,7 @@ const GoogleSheetsClone = () => {
             </button>
 
             {filterMenuOpen && (
-              <div className="filter-menu fixed w-80 bg-white border rounded-lg shadow-lg z-[9999] p-4" style={{ top: '180px', right: '20px' }}>
+              <div className="filter-menu fixed w-80 bg-white border rounded-lg shadow-lg z-[99999] p-4" style={{ top: '180px', right: '20px' }}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-800">
                     Create a filter
@@ -3485,7 +3611,7 @@ const GoogleSheetsClone = () => {
       <div className="flex-1 flex flex-col bg-gray-50">
         {/* Resize Indicator */}
         {showResizeIndicator && isResizing && (
-          <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-lg shadow-lg z-[9999] text-sm font-medium">
+          <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-lg shadow-lg z-[99999] text-sm font-medium">
             {resizeType === "column"
               ? `Width: ${Math.round(getColumnWidth(resizeTarget))}px`
               : `Height: ${Math.round(getRowHeight(resizeTarget))}px`}
@@ -3580,7 +3706,7 @@ const GoogleSheetsClone = () => {
                          
                         {/* Enhanced Filter dropdown */}
                          {showFilterDropdown === columnName && (
-                          <div className="filter-dropdown-container fixed bg-white border border-gray-300 rounded shadow-lg z-[9999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '250px', left: '20px' }}>
+                          <div className="filter-dropdown-container fixed bg-white border border-gray-300 rounded shadow-lg z-[99999] min-w-64 max-h-80 overflow-y-auto" style={{ top: '250px', left: '20px' }}>
                              <div className="p-3">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-medium text-sm">
@@ -3948,7 +4074,7 @@ const GoogleSheetsClone = () => {
         </div>
         
         {/* Sheet Tabs - Fixed at bottom */}
-        <div className="bg-gray-100 border-t border-gray-200 px-4 sm:px-6 py-1 w-full z-[9999] fixed bottom-0 right-0 shadow-lg">
+        <div className="bg-gray-100 border-t border-gray-200 px-4 sm:px-6 py-1 w-full z-[99999] fixed bottom-0 right-0 shadow-lg">
           <div className="flex items-center space-x-1 overflow-x-auto">
             {sheets.map((sheet) => (
               <button
@@ -3976,7 +4102,7 @@ const GoogleSheetsClone = () => {
 
       {/* Chart Modal */}
       {showChartModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
           <div className="bg-white rounded-lg p-6 w-3/4 h-3/4 max-w-4xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Chart Visualization</h2>
@@ -4010,7 +4136,7 @@ const GoogleSheetsClone = () => {
 
       {/* Function Prompt Modal */}
       {showFormulaPrompt && selectedFunction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
@@ -4056,7 +4182,7 @@ const GoogleSheetsClone = () => {
 
       {/* Link Modal */}
       {showLinkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Insert Link</h2>
