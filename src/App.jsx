@@ -6,10 +6,6 @@ import { SpreadsheetProvider } from './context/SpreadsheetContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SpreadsheetModel from './component/SpreadsheetModel';
 import SpreadsheetDashboard from './component/SpreadsheetDashboard';
-import PowerBIDashboard from './component/PowerBIDashboard';
-import StrixChart from './component/StrixChart';
-import Menu from './component/Menubar';
-import ImageLink from './component/Image&Link';
 import BIDashboard from './component/BIDashboard';
 import CreateChart from './component/CreateChart';
 import StrixAuth from './component/StrixAuth';
@@ -48,36 +44,11 @@ const App = () => {
                     <SpreadsheetModel />
                   </ProtectedRoute>
                 } />
-                <Route path="/charts" element={
-                  <ProtectedRoute>
-                    <StrixChart />
-                  </ProtectedRoute>
-                } />
                 <Route path="/create-chart" element={
                   <ProtectedRoute>
                     <CreateChart />
                   </ProtectedRoute>
                 } />
-                <Route path="/menu" element={
-                  <ProtectedRoute>
-                    <Menu />
-                  </ProtectedRoute>
-                } />
-                <Route path="/spreadsheet-model" element={
-                  <ProtectedRoute>
-                    <SpreadsheetModel/>
-                  </ProtectedRoute>
-                }/>
-                <Route path="/powerbi" element={
-                  <ProtectedRoute>
-                    <PowerBIDashboard/>
-                  </ProtectedRoute>
-                }/>
-                <Route path="/image-link" element={
-                  <ProtectedRoute>
-                    <ImageLink/>
-                  </ProtectedRoute>
-                }/>
               </Routes>
             </div>
             <Toaster richColors position="top-center" />
