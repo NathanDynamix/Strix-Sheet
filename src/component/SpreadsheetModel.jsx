@@ -113,6 +113,7 @@ const GoogleSheetsClone = () => {
   const [showFormulaMenu, setShowFormulaMenu] = useState(false);
   const [formulaSearch, setFormulaSearch] = useState("");
   const [formulaMenuPosition, setFormulaMenuPosition] = useState({ top: 0, left: 0 });
+  const [isSearchInputFocused, setIsSearchInputFocused] = useState(false);
   const formulaButtonRef = useRef(null);
   const [functionMenuPosition, setFunctionMenuPosition] = useState({ top: 0, left: 0 });
   const functionButtonRef = useRef(null);
@@ -1244,6 +1245,8 @@ const GoogleSheetsClone = () => {
       // Close formula menu
       if (showFormulaMenu && !event.target.closest(".formula-menu-container")) {
         setShowFormulaMenu(false);
+        setIsSearchInputFocused(false);
+        setFormulaSearch("");
       }
       // Close filter dropdowns in column headers
       if (showFilterDropdown && !event.target.closest(".filter-dropdown-container")) {
@@ -1266,6 +1269,7 @@ const GoogleSheetsClone = () => {
     showFunctionMenu,
     showFormulaMenu,
     showFilterDropdown,
+    isSearchInputFocused,
   ]);
 
   // Keyboard shortcuts
@@ -1450,10 +1454,27 @@ const GoogleSheetsClone = () => {
         return "#ERROR";
       }
     },
-    COUNTA: (range) => {
+    COUNTA: (...args) => {
       try {
-        return getRangeValues(range).filter((v) => v !== "").length;
+        console.log("COUNTA function called with args:", args);
+        let values = [];
+        
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            // It's a range like "A1:A5"
+            values = values.concat(getRangeValues(arg));
+          } else {
+            // It's a direct value (including numbers, text, etc.)
+            values.push(arg);
+          }
+        });
+        
+        // Count all non-empty values
+        const result = values.filter((v) => v !== "" && v !== null && v !== undefined).length;
+        console.log("COUNTA result:", result);
+        return result;
       } catch (e) {
+        console.error("COUNTA error:", e);
         return "#ERROR";
       }
     },
@@ -1509,13 +1530,33 @@ const GoogleSheetsClone = () => {
         return "#ERROR";
       }
     },
-    PRODUCT: (range) => {
+    PRODUCT: (...args) => {
       try {
-        const values = getRangeValues(range).filter(
-          (v) => !isNaN(parseFloat(v))
-        );
-        return values.reduce((product, val) => product * parseFloat(val), 1);
+        console.log("PRODUCT function called with args:", args);
+        let values = [];
+        
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            // It's a range like "A1:A5"
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number') {
+            // It's a direct number
+            values.push(arg);
+          } else if (typeof arg === 'string' && !isNaN(parseFloat(arg))) {
+            // It's a string number like "10"
+            values.push(parseFloat(arg));
+          }
+        });
+        
+        console.log("All values to multiply:", values);
+        const numValues = values
+          .filter((v) => !isNaN(parseFloat(v)))
+          .map((v) => parseFloat(v));
+        const result = numValues.reduce((product, val) => product * val, 1);
+        console.log("PRODUCT result:", result);
+        return result;
       } catch (e) {
+        console.error("PRODUCT error:", e);
         return "#ERROR";
       }
     },
@@ -3376,6 +3417,10 @@ const GoogleSheetsClone = () => {
                 const position = calculateDropdownPosition(formulaButtonRef);
                 setFormulaMenuPosition(position);
                 setShowFormulaMenu(!showFormulaMenu);
+                if (showFormulaMenu) {
+                  setIsSearchInputFocused(false);
+                  setFormulaSearch("");
+                }
               }}
               className="p-2 hover:bg-gray-100 rounded flex items-center"
               title="Functions"
@@ -3390,47 +3435,117 @@ const GoogleSheetsClone = () => {
                   top: `${formulaMenuPosition.top}px`, 
                   left: `${formulaMenuPosition.left}px` 
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => e.stopPropagation()}
+                onBlur={(e) => e.stopPropagation()}
               >
-                <div className="p-2 border-b">
-                  <input
-                    type="text"
-                    placeholder="Search functions..."
-                    className="w-full px-2 py-1 border rounded text-sm"
-                    value={formulaSearch}
-                    onChange={(e) => setFormulaSearch(e.target.value)}
+                <div 
+                  className="p-2 border-b"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div 
+                    className="relative"
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
-                  />
+                  >
+                    <input
+                      type="text"
+                      placeholder="Search functions..."
+                      className="w-full px-2 py-1 pr-8 border rounded text-sm"
+                      value={formulaSearch}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setFormulaSearch(e.target.value);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                      }}
+                      onFocus={(e) => {
+                        e.stopPropagation();
+                        setIsSearchInputFocused(true);
+                      }}
+                      onBlur={(e) => {
+                        e.stopPropagation();
+                        setIsSearchInputFocused(false);
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onMouseUp={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onKeyUp={(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
+                    {formulaSearch && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormulaSearch("");
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {Object.entries(functionCategories).map(
-                    ([category, funcs]) => (
+                  {(() => {
+                    const filteredCategories = Object.entries(functionCategories)
+                      .map(([category, funcs]) => {
+                        // Filter functions in this category
+                        const filteredFuncs = funcs.filter(
+                          (func) =>
+                            !formulaSearch ||
+                            func
+                              .toLowerCase()
+                              .includes(formulaSearch.toLowerCase())
+                        );
+                        
+                        return { category, filteredFuncs };
+                      })
+                      .filter(({ filteredFuncs }) => filteredFuncs.length > 0);
+
+                    // If no categories have matching functions, show "No results found"
+                    if (formulaSearch && filteredCategories.length === 0) {
+                      return (
+                        <div className="p-4 text-center text-gray-500">
+                          No functions found matching "{formulaSearch}"
+                        </div>
+                      );
+                    }
+
+                    // Render categories with matching functions
+                    return filteredCategories.map(({ category, filteredFuncs }) => (
                       <div key={category} className="p-2">
                         <div className="font-semibold text-sm text-gray-600 mb-1">
                           {category}
                         </div>
-                        {funcs
-                          .filter(
-                            (func) =>
-                              !formulaSearch ||
-                              func
-                                .toLowerCase()
-                                .includes(formulaSearch.toLowerCase())
-                          )
-                          .map((func) => (
-                            <button
-                              key={func}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                insertFunction(func);
-                              }}
-                              className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                            >
-                              {func}
-                            </button>
-                          ))}
+                        {filteredFuncs.map((func) => (
+                          <button
+                            key={func}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              insertFunction(func);
+                            }}
+                            className="block w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          >
+                            {func}
+                          </button>
+                        ))}
                       </div>
-                    )
-                  )}
+                    ));
+                  })()}
                 </div>
               </div>,
               document.body
