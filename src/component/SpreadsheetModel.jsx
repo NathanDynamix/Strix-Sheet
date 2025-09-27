@@ -1396,24 +1396,57 @@ const GoogleSheetsClone = () => {
         return "#ERROR";
       }
     },
-    AVERAGE: (range) => {
+    AVERAGE: (...args) => {
       try {
-        const values = getRangeValues(range).filter(
-          (v) => !isNaN(parseFloat(v))
-        );
-        return values.length
-          ? values.reduce((sum, val) => sum + parseFloat(val), 0) /
-              values.length
+        console.log("AVERAGE function called with args:", args);
+        let values = [];
+        
+        // Handle both ranges and direct numbers
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            // It's a range like "A1:A5"
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number') {
+            // It's a direct number
+            values.push(arg);
+          } else if (typeof arg === 'string' && !isNaN(parseFloat(arg))) {
+            // It's a string number like "10"
+            values.push(parseFloat(arg));
+          }
+        });
+        
+        console.log("All values for average:", values);
+        const numValues = values
+          .filter((v) => !isNaN(parseFloat(v)))
+          .map((v) => parseFloat(v));
+        const result = numValues.length
+          ? numValues.reduce((sum, val) => sum + val, 0) / numValues.length
           : 0;
+        console.log("AVERAGE result:", result);
+        return result;
       } catch (e) {
+        console.error("AVERAGE error:", e);
         return "#ERROR";
       }
     },
-    COUNT: (range) => {
+    COUNT: (...args) => {
       try {
-        return getRangeValues(range).filter((v) => !isNaN(parseFloat(v)))
-          .length;
+        console.log("COUNT function called with args:", args);
+        let values = [];
+        
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number' || (typeof arg === 'string' && !isNaN(parseFloat(arg)))) {
+            values.push(arg);
+          }
+        });
+        
+        const result = values.filter((v) => !isNaN(parseFloat(v))).length;
+        console.log("COUNT result:", result);
+        return result;
       } catch (e) {
+        console.error("COUNT error:", e);
         return "#ERROR";
       }
     },
@@ -1424,27 +1457,55 @@ const GoogleSheetsClone = () => {
         return "#ERROR";
       }
     },
-    MAX: (range) => {
+    MAX: (...args) => {
       try {
-        const values = getRangeValues(range).filter(
-          (v) => !isNaN(parseFloat(v))
-        );
-        return values.length
-          ? Math.max(...values.map((v) => parseFloat(v)))
-          : 0;
+        console.log("MAX function called with args:", args);
+        let values = [];
+        
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number') {
+            values.push(arg);
+          } else if (typeof arg === 'string' && !isNaN(parseFloat(arg))) {
+            values.push(parseFloat(arg));
+          }
+        });
+        
+        const numValues = values
+          .filter((v) => !isNaN(parseFloat(v)))
+          .map((v) => parseFloat(v));
+        const result = numValues.length ? Math.max(...numValues) : 0;
+        console.log("MAX result:", result);
+        return result;
       } catch (e) {
+        console.error("MAX error:", e);
         return "#ERROR";
       }
     },
-    MIN: (range) => {
+    MIN: (...args) => {
       try {
-        const values = getRangeValues(range).filter(
-          (v) => !isNaN(parseFloat(v))
-        );
-        return values.length
-          ? Math.min(...values.map((v) => parseFloat(v)))
-          : 0;
+        console.log("MIN function called with args:", args);
+        let values = [];
+        
+        args.forEach(arg => {
+          if (typeof arg === 'string' && arg.includes(':')) {
+            values = values.concat(getRangeValues(arg));
+          } else if (typeof arg === 'number') {
+            values.push(arg);
+          } else if (typeof arg === 'string' && !isNaN(parseFloat(arg))) {
+            values.push(parseFloat(arg));
+          }
+        });
+        
+        const numValues = values
+          .filter((v) => !isNaN(parseFloat(v)))
+          .map((v) => parseFloat(v));
+        const result = numValues.length ? Math.min(...numValues) : 0;
+        console.log("MIN result:", result);
+        return result;
       } catch (e) {
+        console.error("MIN error:", e);
         return "#ERROR";
       }
     },
@@ -1546,6 +1607,66 @@ const GoogleSheetsClone = () => {
         );
         return fv;
       } catch (e) {
+        return "#ERROR";
+      }
+    },
+
+    // ACCRINT: Calculates accrued interest for a security that pays periodic interest
+    ACCRINT: (issue, first_interest, settlement, rate, par, frequency, basis = 0) => {
+      try {
+        console.log("ACCRINT function called with args:", { issue, first_interest, settlement, rate, par, frequency, basis });
+        
+        // Convert dates to Date objects
+        const issueDate = new Date(issue);
+        const firstInterestDate = new Date(first_interest);
+        const settlementDate = new Date(settlement);
+        
+        // Validate dates
+        if (isNaN(issueDate.getTime()) || isNaN(firstInterestDate.getTime()) || isNaN(settlementDate.getTime())) {
+          console.log("ACCRINT: Invalid date format");
+          return "#ERROR";
+        }
+        
+        const parValue = parseFloat(par) || 1000;
+        const annualRate = parseFloat(rate) || 0;
+        const freq = parseInt(frequency) || 1;
+        const dayBasis = parseInt(basis) || 0;
+        
+        // Calculate days between issue and settlement
+        const daysDiff = Math.floor((settlementDate - issueDate) / (1000 * 60 * 60 * 24));
+        
+        // Calculate days in year based on basis
+        let daysInYear;
+        if (dayBasis === 0) {
+          // US (NASD) 30/360
+          daysInYear = 360;
+        } else if (dayBasis === 1) {
+          // Actual/Actual
+          const year = settlementDate.getFullYear();
+          daysInYear = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
+        } else if (dayBasis === 2) {
+          // Actual/360
+          daysInYear = 360;
+        } else if (dayBasis === 3) {
+          // Actual/365
+          daysInYear = 365;
+        } else {
+          // European 30/360
+          daysInYear = 360;
+        }
+        
+        // Calculate accrued interest
+        const accruedInterest = parValue * annualRate * (daysDiff / daysInYear);
+        
+        console.log("ACCRINT calculation:", {
+          daysDiff,
+          daysInYear,
+          accruedInterest
+        });
+        
+        return accruedInterest;
+      } catch (e) {
+        console.error("ACCRINT error:", e);
         return "#ERROR";
       }
     },
